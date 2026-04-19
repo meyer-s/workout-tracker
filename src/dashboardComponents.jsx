@@ -35,22 +35,22 @@ function getTrendTone(delta) {
 }
 
 function getTrendMessage(delta) {
-  if (delta === null) return "No baseline";
+  if (delta === null) return "No prior log";
   if (delta > 0) return "Stronger";
-  if (delta < 0) return "Fatigued";
-  return "Holding steady";
+  if (delta < 0) return "Down";
+  return "Flat";
 }
 
 export function SectionCard({ title, subtitle = "", children }) {
   return (
     <section style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 20, boxShadow: theme.shadow }}>
       {title ? (
-        <div style={{ padding: "18px 22px", borderBottom: `1px solid ${theme.border}` }}>
+        <div style={{ padding: "20px 24px", borderBottom: `1px solid ${theme.border}` }}>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: theme.text }}>{title}</h2>
-          {subtitle ? <p style={{ margin: "6px 0 0", color: theme.textSoft, fontSize: 13 }}>{subtitle}</p> : null}
+          {subtitle ? <p style={{ margin: "8px 0 0", color: theme.textSoft, fontSize: 14, lineHeight: 1.55 }}>{subtitle}</p> : null}
         </div>
       ) : null}
-      <div style={{ padding: 22 }}>{children}</div>
+      <div style={{ padding: 24 }}>{children}</div>
     </section>
   );
 }
@@ -62,14 +62,14 @@ export function GroupBadge({ family, group, compact = false }) {
 
 export function MetricChip({ label, value }) {
   return (
-    <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: "8px 10px", minWidth: 112, background: theme.surfaceStrong }}>
+    <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: "10px 12px", minWidth: 112, background: theme.surfaceStrong }}>
       <div style={{ fontSize: 11, textTransform: "uppercase", color: theme.textMuted, letterSpacing: 0.5 }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4, color: theme.text }}>{value}</div>
     </div>
   );
 }
 
-export function TrendPill({ label, delta, suffix = "", emptyLabel = "No baseline", compact = false }) {
+export function TrendPill({ label, delta, suffix = "", emptyLabel = "No prior log", compact = false }) {
   const tone = getTrendTone(delta);
   const pillStyle = {
     display: "inline-flex",
@@ -93,11 +93,11 @@ export function TrendPill({ label, delta, suffix = "", emptyLabel = "No baseline
 
 export function ExerciseHistoryCard({ history }) {
   return (
-    <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 12 }}>
+    <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, background: theme.surface, boxShadow: theme.shadow, display: "grid", gap: 14 }}>
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12 }}>
         <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{history.name}</div>
-          <div style={{ fontSize: 13, color: "#6b7280" }}>{history.exampleExerciseName}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: theme.text }}>{history.name}</div>
+          <div style={{ fontSize: 13, color: theme.textSoft }}>{history.exampleExerciseName}</div>
           <GroupBadge family={history.taxonomy.family} group={history.taxonomy.group} />
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
@@ -107,19 +107,19 @@ export function ExerciseHistoryCard({ history }) {
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-        <div style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, background: "#f9fafb" }}>
-          <div style={{ fontSize: 12, color: "#6b7280", textTransform: "uppercase" }}>First logged</div>
+        <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surfaceStrong }}>
+          <div style={{ fontSize: 12, color: theme.textMuted, textTransform: "uppercase" }}>First logged</div>
           <div style={{ marginTop: 6, fontWeight: 600 }}>{history.first.dateLabel} · Workout {history.first.workoutNumber}</div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 14 }}>{history.first.variations.map((variation) => variation.summary).join(" • ")}</div>
+          <div style={{ marginTop: 6, color: theme.textSoft, fontSize: 14, lineHeight: 1.55 }}>{history.first.variations.map((variation) => variation.summary).join(" • ")}</div>
         </div>
-        <div style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, background: "#f9fafb" }}>
-          <div style={{ fontSize: 12, color: "#6b7280", textTransform: "uppercase" }}>Latest logged</div>
+        <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surfaceStrong }}>
+          <div style={{ fontSize: 12, color: theme.textMuted, textTransform: "uppercase" }}>Latest logged</div>
           <div style={{ marginTop: 6, fontWeight: 600 }}>{history.latest.dateLabel} · Workout {history.latest.workoutNumber}</div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 14 }}>{history.latest.variations.map((variation) => variation.summary).join(" • ")}</div>
+          <div style={{ marginTop: 6, color: theme.textSoft, fontSize: 14, lineHeight: 1.55 }}>{history.latest.variations.map((variation) => variation.summary).join(" • ")}</div>
         </div>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {history.latest.trend?.hasRepData ? <TrendPill label="Reps" delta={history.latest.trend.repDelta} /> : history.latest.trend?.hasTimeData ? <TrendPill label="Time" delta={history.latest.trend.timeDelta} suffix="s" /> : <TrendPill label="Reps" delta={null} emptyLabel="No baseline" />}
+        {history.latest.trend?.hasRepData ? <TrendPill label="Best reps" delta={history.latest.trend.repDelta} /> : history.latest.trend?.hasTimeData ? <TrendPill label="Best hold" delta={history.latest.trend.timeDelta} suffix="s" /> : <TrendPill label="Best reps" delta={null} emptyLabel="No baseline" />}
         <TrendPill label="Load" delta={history.latest.trend?.loadDelta ?? null} suffix=" lb" />
       </div>
     </div>
@@ -135,7 +135,7 @@ export const insightTones = {
 export function InsightStatCard({ label, value, subtitle, tone = "neutral" }) {
   const palette = insightTones[tone] ?? insightTones.neutral;
   return (
-    <div style={{ background: palette.background, border: `1px solid ${palette.border}`, borderRadius: 18, padding: 18, boxShadow: theme.shadow, display: "grid", gap: 8 }}>
+    <div style={{ background: palette.background, border: `1px solid ${palette.border}`, borderRadius: 18, padding: 20, boxShadow: theme.shadow, display: "grid", gap: 10 }}>
       <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, color: palette.accent }}>{label}</div>
       <div style={{ fontSize: 27, fontWeight: 700, color: theme.text }}>{value}</div>
       <div style={{ fontSize: 13, color: palette.text, lineHeight: 1.5 }}>{subtitle}</div>
@@ -146,9 +146,9 @@ export function InsightStatCard({ label, value, subtitle, tone = "neutral" }) {
 export function InsightCalloutCard({ title, body, tone = "neutral" }) {
   const palette = insightTones[tone] ?? insightTones.neutral;
   return (
-    <div style={{ border: `1px solid ${palette.border}`, borderRadius: 16, padding: 16, background: palette.background, display: "grid", gap: 8 }}>
+    <div style={{ border: `1px solid ${palette.border}`, borderRadius: 16, padding: 18, background: palette.background, display: "grid", gap: 10 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: palette.accent, textTransform: "uppercase", letterSpacing: 0.4 }}>{title}</div>
-      <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>{body}</div>
+      <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.65 }}>{body}</div>
     </div>
   );
 }

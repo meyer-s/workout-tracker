@@ -15,6 +15,11 @@ function sum(items, selector) {
   return items.reduce((total, item) => total + selector(item), 0);
 }
 
+function average(items, selector) {
+  if (items.length === 0) return 0;
+  return Math.round(sum(items, selector) / items.length);
+}
+
 function roundPercent(value) {
   return Number.isFinite(value) ? Math.round(value) : 0;
 }
@@ -103,6 +108,33 @@ function getLoadTone(value) {
   return "neutral";
 }
 
+function chunk(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function formatWeekRange(weeks) {
+  if (weeks.length === 0) return "";
+  return `Weeks ${weeks[0].week}-${weeks[weeks.length - 1].week}`;
+}
+
+function formatTopGrowthChange(history) {
+  if (!history) return "";
+  if (history.loadDelta !== null) {
+    return `${history.loadDelta > 0 ? "+" : ""}${history.loadDelta} lb load change`;
+  }
+  if ((history.bestCountDelta ?? 0) !== 0) {
+    return `${history.bestCountDelta > 0 ? "+" : ""}${history.bestCountDelta} best rep change`;
+  }
+  if ((history.bestTimeDelta ?? 0) !== 0) {
+    return `${history.bestTimeDelta > 0 ? "+" : ""}${history.bestTimeDelta}s best hold change`;
+  }
+  return `${history.setDelta > 0 ? "+" : ""}${history.setDelta} set change`;
+}
+
 export function buildOverviewInsights(dashboardData, weeklyTargets) {
   const { structuredWorkouts, repeatedExercises, exerciseHistories } = dashboardData;
   const orderedWorkouts = sortByTimestamp(structuredWorkouts);
@@ -139,7 +171,7 @@ export function buildOverviewInsights(dashboardData, weeklyTargets) {
       value: `${recentSets} sets`,
       subtitle: previousWorkouts.length > 0
         ? `${loadDeltaPercent > 0 ? "+" : ""}${loadDeltaPercent ?? 0}% vs previous ${previousWorkouts.length} sessions`
-        : "Need at least 6 sessions for a rolling comparison",
+        : "Add 6 sessions to unlock a rolling comparison",
       tone: getLoadTone(loadDeltaPercent),
     },
     {
@@ -147,9 +179,9 @@ export function buildOverviewInsights(dashboardData, weeklyTargets) {
       label: "Most improved movement",
       value: topGrowth ? topGrowth.name : "No repeat data yet",
       subtitle: topGrowth
-        ? `${topGrowth.sessionCount} sessions · ${topGrowth.loadDelta !== null ? `${topGrowth.loadDelta > 0 ? "+" : ""}${topGrowth.loadDelta} lb load change` : `${topGrowth.volumeDelta > 0 ? "+" : ""}${topGrowth.volumeDelta} volume change`}`
-        : "Repeat movements to unlock progression signals",
-      tone: topGrowth && ((topGrowth.loadDelta ?? 0) > 0 || topGrowth.volumeDelta > 0) ? "positive" : "neutral",
+        ? `${topGrowth.sessionCount} sessions · ${formatTopGrowthChange(topGrowth)}`
+        : "Repeat movements to surface progression signals",
+      tone: topGrowth && ((topGrowth.loadDelta ?? 0) > 0 || (topGrowth.bestCountDelta ?? 0) > 0 || (topGrowth.bestTimeDelta ?? 0) > 0) ? "positive" : "neutral",
     },
     {
       id: "coverage",
@@ -160,11 +192,11 @@ export function buildOverviewInsights(dashboardData, weeklyTargets) {
     },
     {
       id: "attention",
-      label: "Worth revisiting",
+      label: "Longest gap",
       value: groupNeedingAttention ? groupNeedingAttention.group : "No gap detected",
       subtitle: groupNeedingAttention
         ? `Last showed up ${formatDays(groupNeedingAttention.daysSinceLatest)} ago on ${groupNeedingAttention.latestDateLabel}`
-        : "No obvious gap in the current log yet",
+        : "No meaningful gap in the current log",
       tone: groupNeedingAttention && groupNeedingAttention.daysSinceLatest >= 10 ? "warning" : "neutral",
     },
   ];
@@ -174,24 +206,24 @@ export function buildOverviewInsights(dashboardData, weeklyTargets) {
       id: "load-shift",
       title: "What changed",
       body: previousWorkouts.length > 0
-        ? `Your latest ${recentWorkouts.length} sessions total ${recentSets} parsed sets, ${loadDeltaPercent > 0 ? "up" : loadDeltaPercent < 0 ? "down" : "flat"} ${Math.abs(loadDeltaPercent ?? 0)}% versus the prior block. That is useful context for you and your trainer, not a verdict on the plan.`
-        : "You have enough data to log sessions, but not yet enough history to compare rolling training load.",
+        ? `Your latest ${recentWorkouts.length} sessions total ${recentSets} parsed sets, ${loadDeltaPercent > 0 ? "up" : loadDeltaPercent < 0 ? "down" : "flat"} ${Math.abs(loadDeltaPercent ?? 0)}% versus the prior block.`
+        : "You have enough data to log sessions, but not enough history to compare rolling training load yet.",
       tone: getLoadTone(loadDeltaPercent),
     },
     {
       id: "momentum",
       title: "What is working",
       body: topGrowth
-        ? `${topGrowth.name} stands out as a positive signal right now, with ${topGrowth.sessionCount} logged exposures and ${topGrowth.loadDelta !== null ? `${topGrowth.loadDelta > 0 ? `a +${topGrowth.loadDelta} lb change` : `${topGrowth.loadDelta} lb change`}` : `${topGrowth.volumeDelta > 0 ? `+${topGrowth.volumeDelta}` : topGrowth.volumeDelta} volume change`}. Consider it a conversation starter alongside your trainer's larger programming intent.`
-        : "Once a few movements repeat across sessions, this panel can highlight patterns without trying to replace your trainer's bigger-cycle planning.",
+        ? `${topGrowth.name} is leading right now, with ${topGrowth.sessionCount} logged exposures and ${formatTopGrowthChange(topGrowth)} across the log.`
+        : "Once a few movements repeat across sessions, this panel highlights the clearest progression patterns.",
       tone: topGrowth ? "positive" : "neutral",
     },
     {
       id: "focus-gap",
-      title: "Where context may help",
+      title: "Where the gap is",
       body: groupNeedingAttention
-        ? `${groupNeedingAttention.group} has gone the longest without showing up again. ${latestFocus.length > 0 ? `Recent focus has been ${latestFocus.join(" and ")}, which may simply reflect the current block emphasis.` : "That is a gentle flag to review with the coach if it stays quiet for too long."}`
-        : "No obvious gap yet. This view can stay supportive by surfacing patterns without second-guessing the current macro, meso, or microcycle focus.",
+        ? `${groupNeedingAttention.group} has gone the longest without showing up again. ${latestFocus.length > 0 ? `Recent focus has centered on ${latestFocus.join(" and ")}.` : "Keep an eye on that gap if it stretches much longer."}`
+        : "No obvious gap yet. The log looks fairly well distributed right now.",
       tone: groupNeedingAttention ? "warning" : "neutral",
     },
   ];
@@ -240,7 +272,7 @@ export function buildTaxonomyInsights(dashboardData) {
       ? {
         id: "family-imbalance",
         title: "Volume balance",
-        body: `${heaviestFamily.family} carries ${heaviestFamily.share}% of your parsed sets, while ${lightestFamily.family} sits at ${lightestFamily.share}%. That is useful context, while still leaving room for the trainer's intended emphasis in this phase.`,
+        body: `${heaviestFamily.family} carries ${heaviestFamily.share}% of your parsed sets, while ${lightestFamily.family} sits at ${lightestFamily.share}%. That gives a clear read on where volume is concentrated right now.`,
         tone: heaviestFamily.share - lightestFamily.share >= 18 ? "warning" : "neutral",
       }
       : null,
@@ -248,7 +280,7 @@ export function buildTaxonomyInsights(dashboardData) {
       ? {
         id: "stale-group",
         title: "Most neglected group",
-        body: `${neglectedGroups[0].group} has been quiet for ${formatDays(neglectedGroups[0].daysSinceLatest)}. It still represents ${neglectedGroups[0].share}% of all logged sets, so it may be worth checking whether that quiet stretch is intentional for the current training block.`,
+        body: `${neglectedGroups[0].group} has been quiet for ${formatDays(neglectedGroups[0].daysSinceLatest)}. It still represents ${neglectedGroups[0].share}% of all logged sets, so the drop-off is noticeable in the current block.`,
         tone: neglectedGroups[0].daysSinceLatest >= 10 ? "warning" : "neutral",
       }
       : null,
@@ -256,7 +288,7 @@ export function buildTaxonomyInsights(dashboardData) {
       ? {
         id: "dominant-group",
         title: "Current emphasis",
-        body: `${emphasizedGroups[0].group} is the biggest bucket right now with ${emphasizedGroups[0].totalSets} sets and ${emphasizedGroups[0].sessionCount} appearances. That gives a clear picture of what this slice of training is emphasizing, without claiming it should be otherwise.`,
+        body: `${emphasizedGroups[0].group} is the biggest bucket right now with ${emphasizedGroups[0].totalSets} sets and ${emphasizedGroups[0].sessionCount} appearances. That is the clearest emphasis in this stretch of training.`,
         tone: "positive",
       }
       : null,
@@ -267,6 +299,79 @@ export function buildTaxonomyInsights(dashboardData) {
     neglectedGroups,
     emphasizedGroups,
     balanceNotes,
+  };
+}
+
+export function buildCycleInsights(dashboardData, weeklyTargets) {
+  const { structuredWorkouts } = dashboardData;
+  const orderedWorkouts = sortByTimestamp(structuredWorkouts);
+  const microcycleSessions = orderedWorkouts.slice(-3);
+  const previousMicrocycleSessions = orderedWorkouts.slice(-6, -3);
+  const microcycleSets = sum(microcycleSessions, (workout) => workout.totalSets);
+  const previousMicrocycleSets = sum(previousMicrocycleSessions, (workout) => workout.totalSets);
+  const microcycleDelta = percentageChange(microcycleSets, previousMicrocycleSets);
+  const microcycleFocus = getTopGroupsFromExercises(microcycleSessions.flatMap((workout) => workout.exercises), 3).map((group) => group.group);
+
+  const mesocycleBlocks = chunk(weeklyTargets, 4).map((weeks, index, blocks) => {
+    const previousBlock = index > 0 ? blocks[index - 1] : null;
+    const totalCalories = sum(weeks, (week) => week.calories);
+    const previousCalories = previousBlock ? sum(previousBlock, (week) => week.calories) : 0;
+    const intensityWeeks = weeks.filter((week) => week.intensity !== null);
+    return {
+      id: `mesocycle-${index + 1}`,
+      label: `Block ${index + 1}`,
+      weekRange: formatWeekRange(weeks),
+      totalCalories,
+      avgCalories: average(weeks, (week) => week.calories),
+      avgIntensity: intensityWeeks.length > 0 ? average(intensityWeeks, (week) => week.intensity ?? 0) : null,
+      deltaPercent: previousBlock ? percentageChange(totalCalories, previousCalories) : null,
+      peakWeek: weeks.reduce((peak, week) => week.calories > peak.calories ? week : peak, weeks[0]),
+    };
+  });
+
+  let cumulativeCalories = 0;
+  const macrocycleData = weeklyTargets.map((week) => {
+    cumulativeCalories += week.calories;
+    return {
+      week: `W${week.week}`,
+      calories: week.calories,
+      cumulativeCalories,
+    };
+  });
+
+  const peakWeek = weeklyTargets.length > 0 ? weeklyTargets.reduce((peak, week) => week.calories > peak.calories ? week : peak, weeklyTargets[0]) : null;
+  const latestWeek = weeklyTargets[weeklyTargets.length - 1] ?? null;
+  const firstWeek = weeklyTargets[0] ?? null;
+
+  return {
+    microcycle: {
+      label: microcycleSessions.length > 0
+        ? `${microcycleSessions[0].dateLabel}–${microcycleSessions[microcycleSessions.length - 1].dateLabel}`
+        : "No recent sessions",
+      sessionCount: microcycleSessions.length,
+      totalSets: microcycleSets,
+      avgSets: microcycleSessions.length > 0 ? average(microcycleSessions, (workout) => workout.totalSets) : 0,
+      deltaPercent: microcycleDelta,
+      focus: microcycleFocus,
+      data: microcycleSessions.map((workout) => ({
+        label: workout.dateLabel,
+        sets: workout.totalSets,
+        exercises: workout.exercises.length,
+      })),
+    },
+    mesocycle: {
+      blocks: mesocycleBlocks,
+      currentBlock: mesocycleBlocks[mesocycleBlocks.length - 1] ?? null,
+    },
+    macrocycle: {
+      totalWeeks: weeklyTargets.length,
+      totalCalories: sum(weeklyTargets, (week) => week.calories),
+      startWeek: firstWeek,
+      latestWeek,
+      peakWeek,
+      data: macrocycleData,
+      deltaPercent: firstWeek && latestWeek ? percentageChange(latestWeek.calories, firstWeek.calories) : null,
+    },
   };
 }
 

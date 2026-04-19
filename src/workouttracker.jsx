@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import {
   buildOverviewInsights,
+  buildCycleInsights,
   buildTaxonomyInsights,
   buildTrainerPreviewModel,
 } from "./dashboardViewModels";
@@ -1131,6 +1132,7 @@ export default function TrainingLogDashboard() {
   const { structuredWorkouts, exerciseHistories, taxonomySummary, exerciseIndex, repeatedExercises, topGrowthLeaders, totalParsedSets, dominantGroup } = dashboardData;
   const previewStructuredWorkouts = useMemo(() => buildAnalyticsData(previewWorkouts).structuredWorkouts, [previewWorkouts]);
   const overviewInsights = useMemo(() => buildOverviewInsights(dashboardData, activeWeeklyTargets), [dashboardData, activeWeeklyTargets]);
+  const cycleInsights = useMemo(() => buildCycleInsights(dashboardData, activeWeeklyTargets), [dashboardData, activeWeeklyTargets]);
   const taxonomyInsights = useMemo(() => buildTaxonomyInsights(dashboardData), [dashboardData]);
   const trainerPreviewModel = useMemo(() => buildTrainerPreviewModel(previewStructuredWorkouts, structuredWorkouts), [previewStructuredWorkouts, structuredWorkouts]);
   const editRecordLookup = useMemo(() => new Map(editedWorkoutRecords.map((entry) => [getWorkoutKey(entry.workout), entry])), [editedWorkoutRecords]);
@@ -1279,14 +1281,14 @@ export default function TrainingLogDashboard() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${theme.backgroundAccent} 0%, ${theme.background} 100%)`, padding: 24, fontFamily: "Arial, Helvetica, sans-serif", color: theme.text }}>
+    <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${theme.backgroundAccent} 0%, ${theme.background} 100%)`, padding: 28, fontFamily: "Arial, Helvetica, sans-serif", color: theme.text }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 28 }}>
           <div style={{ display: "inline-block", padding: "6px 12px", borderRadius: 999, background: theme.accentSoft, color: theme.accentStrong, border: `1px solid ${theme.border}`, fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Structured Training Archive</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "space-between", alignItems: "flex-end" }}>
             <div style={{ flex: "1 1 700px" }}>
               <h1 style={{ margin: 0, fontSize: 40, lineHeight: 1.1, color: theme.text }}>Workout Taxonomy & Growth Dashboard</h1>
-              <p style={{ margin: "12px 0 0", maxWidth: 900, color: theme.textSoft, lineHeight: 1.6 }}>Now scoped to <strong style={{ color: theme.text }}>{activeClient?.name}</strong>, with client-specific imports, edits, targets, and trainer notes.</p>
+              <p style={{ margin: "12px 0 0", maxWidth: 900, color: theme.textSoft, lineHeight: 1.65 }}>Now scoped to <strong style={{ color: theme.text }}>{activeClient?.name}</strong>, with client-specific imports, edits, targets, and trainer notes.</p>
             </div>
             <div style={{ width: "100%", maxWidth: 360 }}>
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search exercises, groups, workouts..." style={{ width: "100%", padding: "12px 14px", borderRadius: 14, border: `1px solid ${theme.border}`, fontSize: 14, boxSizing: "border-box", background: theme.surface, color: theme.text, boxShadow: theme.shadow }} />
@@ -1294,8 +1296,8 @@ export default function TrainingLogDashboard() {
           </div>
         </div>
 
-        <SectionCard title="Client workspace" subtitle="Switch between clients now; database-backed storage is the next step after this local multi-client layer">
-          <div style={{ display: "grid", gap: 14 }}>
+        <SectionCard title="Client workspace" subtitle="Switch between client records here. Database-backed storage is the next step after this local multi-client layer.">
+          <div style={{ display: "grid", gap: 16 }}>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
               <label style={{ display: "grid", gap: 6, minWidth: 240, flex: "1 1 260px", fontSize: 13, color: theme.textSoft }}>
                 Active client
@@ -1304,10 +1306,10 @@ export default function TrainingLogDashboard() {
                 </select>
               </label>
               <label style={{ display: "grid", gap: 6, minWidth: 220, flex: "1 1 220px", fontSize: 13, color: theme.textSoft }}>
-                Add another client
+                New client
                 <input value={newClientName} onChange={(event) => setNewClientName(event.target.value)} placeholder="Client name" style={{ padding: "11px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text }} />
               </label>
-              <button type="button" onClick={createClient} disabled={!newClientName.trim()} style={{ border: `1px solid ${theme.borderStrong}`, background: newClientName.trim() ? theme.accent : theme.surfaceMuted, color: newClientName.trim() ? "#f4f6f1" : theme.textMuted, borderRadius: 12, padding: "11px 14px", cursor: newClientName.trim() ? "pointer" : "not-allowed", fontWeight: 600 }}>Add client</button>
+              <button type="button" onClick={createClient} disabled={!newClientName.trim()} style={{ border: `1px solid ${theme.borderStrong}`, background: newClientName.trim() ? theme.accent : theme.surfaceMuted, color: newClientName.trim() ? "#f4f6f1" : theme.textMuted, borderRadius: 12, padding: "11px 14px", cursor: newClientName.trim() ? "pointer" : "not-allowed", fontWeight: 600 }}>Create client</button>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", color: theme.textSoft, fontSize: 13 }}>
               <span>{clients.length} client{clients.length === 1 ? "" : "s"} loaded</span>
@@ -1320,13 +1322,13 @@ export default function TrainingLogDashboard() {
           </div>
         </SectionCard>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 18, marginBottom: 28 }}>
           {overviewInsights.summaryCards.map((card) => (
             <InsightStatCard key={card.id} label={card.label} value={card.value} subtitle={card.subtitle} tone={card.tone} />
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
           {[["overview", "Overview"], ["progress", "Growth"], ["groups", "Taxonomy"], ["workouts", "Workout log"], ["index", "Exercise index"], ["intake", "Trainer intake"], ["weeks", "Weekly targets"]].map(([value, label]) => {
             const isActive = activeTab === value;
             return <button key={value} type="button" onClick={() => setActiveTab(value)} style={{ border: `1px solid ${isActive ? theme.borderStrong : theme.border}`, background: isActive ? theme.accent : theme.surface, color: isActive ? "#f4f6f1" : theme.text, borderRadius: 14, padding: "10px 14px", cursor: "pointer", fontWeight: 600, boxShadow: isActive ? theme.shadow : "none" }}>{label}</button>;
@@ -1334,33 +1336,33 @@ export default function TrainingLogDashboard() {
         </div>
 
         {activeTab === "overview" && (
-          <div style={{ display: "grid", gap: 16 }}>
-            <SectionCard title="What stands out" subtitle="A faster read on what changed, what is working, and where the plan may be getting narrow">
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(280px, 0.9fr)", gap: 16 }}>
-                <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gap: 18 }}>
+            <SectionCard title="What stands out" subtitle="A quick read on what changed, what is working, and where the plan is getting narrow.">
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(280px, 0.9fr)", gap: 18 }}>
+                <div style={{ display: "grid", gap: 14 }}>
                   {overviewInsights.callouts.map((callout) => (
                     <InsightCalloutCard key={callout.id} title={callout.title} body={callout.body} tone={callout.tone} />
                   ))}
                 </div>
-                <div style={{ display: "grid", gap: 12 }}>
-                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Recent focus</div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {overviewInsights.latestFocus.length > 0 ? overviewInsights.latestFocus.map((label) => (
                         <span key={label} style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13, fontWeight: 600 }}>{label}</span>
-                      )) : <span style={{ color: theme.textSoft, fontSize: 14 }}>No recent focus signal yet.</span>}
+                      )) : <span style={{ color: theme.textSoft, fontSize: 14 }}>No recent focus yet.</span>}
                     </div>
                   </div>
-                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 8 }}>
+                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 10 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Weekly target trend</div>
                     <div style={{ fontSize: 24, fontWeight: 700, color: theme.text }}>{overviewInsights.calorieTrend.recentCalories.toLocaleString()}</div>
-                    <div style={{ color: theme.textSoft, lineHeight: 1.5 }}>{overviewInsights.calorieTrend.latestWindowLabel ? `${overviewInsights.calorieTrend.latestWindowLabel} total calories` : "No calorie window yet"}</div>
-                    <div style={{ color: theme.textMuted, fontSize: 13 }}>{overviewInsights.calorieTrend.previousCalories > 0 ? `${overviewInsights.calorieTrend.deltaPercent > 0 ? "+" : ""}${overviewInsights.calorieTrend.deltaPercent ?? 0}% vs prior 4-week block` : maxCaloriesWeek ? `Peak week remains Week ${maxCaloriesWeek.week} at ${maxCaloriesWeek.calories.toLocaleString()} calories.` : "No weekly target history for this client yet."}</div>
+                    <div style={{ color: theme.textSoft, lineHeight: 1.5 }}>{overviewInsights.calorieTrend.latestWindowLabel ? `${overviewInsights.calorieTrend.latestWindowLabel} total calories` : "No target window yet"}</div>
+                    <div style={{ color: theme.textMuted, fontSize: 13 }}>{overviewInsights.calorieTrend.previousCalories > 0 ? `${overviewInsights.calorieTrend.deltaPercent > 0 ? "+" : ""}${overviewInsights.calorieTrend.deltaPercent ?? 0}% vs prior 4-week block` : maxCaloriesWeek ? `Peak week remains Week ${maxCaloriesWeek.week} at ${maxCaloriesWeek.calories.toLocaleString()} calories.` : "No weekly target history yet."}</div>
                   </div>
                 </div>
               </div>
             </SectionCard>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18 }}>
               <SectionCard title="Calories by week">
                 <div style={{ height: 320 }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -1376,10 +1378,83 @@ export default function TrainingLogDashboard() {
                 </div>
               </SectionCard>
             </div>
-            <SectionCard title="Growth highlights" subtitle="Top repeated movement buckets with the clearest progression signal">
-              <div style={{ display: "grid", gap: 12 }}>
+            <SectionCard title="Cycle view" subtitle="A visual read on the current microcycle, rolling mesocycles, and the broader macrocycle arc.">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18 }}>
+                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Microcycle</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: theme.text }}>{cycleInsights.microcycle.label}</div>
+                    <div style={{ fontSize: 13, color: theme.textSoft }}>Last {cycleInsights.microcycle.sessionCount || 0} sessions · {cycleInsights.microcycle.totalSets} total sets</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <MetricChip label="Avg sets" value={cycleInsights.microcycle.avgSets} />
+                    <MetricChip label="Load shift" value={cycleInsights.microcycle.deltaPercent === null ? "n/a" : `${cycleInsights.microcycle.deltaPercent > 0 ? "+" : ""}${cycleInsights.microcycle.deltaPercent}%`} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {cycleInsights.microcycle.focus.length > 0 ? cycleInsights.microcycle.focus.map((focus) => <span key={focus} style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13, fontWeight: 600 }}>{focus}</span>) : <span style={{ color: theme.textSoft, fontSize: 13 }}>No focus tags yet.</span>}
+                  </div>
+                  <div style={{ height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={cycleInsights.microcycle.data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
+                        <XAxis dataKey="label" stroke={theme.textMuted} tick={{ fontSize: 12 }} />
+                        <YAxis stroke={theme.textMuted} />
+                        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 14, color: theme.text }} />
+                        <Bar dataKey="sets" fill={theme.accentStrong} radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Mesocycles</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: theme.text }}>{cycleInsights.mesocycle.currentBlock?.weekRange ?? "No block yet"}</div>
+                    <div style={{ fontSize: 13, color: theme.textSoft }}>{cycleInsights.mesocycle.currentBlock ? `${cycleInsights.mesocycle.currentBlock.totalCalories.toLocaleString()} calories in the current 4-week block` : "Add weekly targets to build mesocycle blocks."}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <MetricChip label="Avg calories" value={cycleInsights.mesocycle.currentBlock ? cycleInsights.mesocycle.currentBlock.avgCalories.toLocaleString() : "n/a"} />
+                    <MetricChip label="Avg intensity" value={cycleInsights.mesocycle.currentBlock?.avgIntensity ?? "n/a"} />
+                  </div>
+                  <div style={{ height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={cycleInsights.mesocycle.blocks}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
+                        <XAxis dataKey="label" stroke={theme.textMuted} tick={{ fontSize: 12 }} />
+                        <YAxis stroke={theme.textMuted} />
+                        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 14, color: theme.text }} />
+                        <Bar dataKey="totalCalories" fill={theme.accent} radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Macrocycle</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: theme.text }}>{cycleInsights.macrocycle.totalWeeks} tracked weeks</div>
+                    <div style={{ fontSize: 13, color: theme.textSoft }}>{cycleInsights.macrocycle.peakWeek ? `Peak week: Week ${cycleInsights.macrocycle.peakWeek.week} at ${cycleInsights.macrocycle.peakWeek.calories.toLocaleString()} calories` : "Add weekly targets to map the longer arc."}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <MetricChip label="Total calories" value={cycleInsights.macrocycle.totalCalories.toLocaleString()} />
+                    <MetricChip label="Start → now" value={cycleInsights.macrocycle.deltaPercent === null ? "n/a" : `${cycleInsights.macrocycle.deltaPercent > 0 ? "+" : ""}${cycleInsights.macrocycle.deltaPercent}%`} />
+                  </div>
+                  <div style={{ height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={cycleInsights.macrocycle.data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
+                        <XAxis dataKey="week" stroke={theme.textMuted} tick={{ fontSize: 12 }} />
+                        <YAxis stroke={theme.textMuted} />
+                        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 14, color: theme.text }} />
+                        <Line type="monotone" dataKey="cumulativeCalories" stroke={theme.accentStrong} strokeWidth={3} dot={{ fill: theme.accentStrong, stroke: theme.surface, r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+            <SectionCard title="Growth highlights" subtitle="Repeated movement buckets with the clearest progression signal.">
+              <div style={{ display: "grid", gap: 14 }}>
                 {topGrowthLeaders.map((history) => (
-                  <div key={history.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, background: theme.surface }}>
+                  <div key={history.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surface }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                       <div>
                         <div style={{ fontWeight: 700, color: theme.text }}>{history.name}</div>
@@ -1388,7 +1463,7 @@ export default function TrainingLogDashboard() {
                       <GroupBadge family={history.taxonomy.family} group={history.taxonomy.group} />
                     </div>
                     <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {history.latest.trend?.hasRepData ? <TrendPill label="Best reps" delta={history.latest.trend.repDelta} /> : history.latest.trend?.hasTimeData ? <TrendPill label="Best hold" delta={history.latest.trend.timeDelta} suffix="s" /> : <TrendPill label="Best reps" delta={null} emptyLabel="No baseline" />}
+                      {history.latest.trend?.hasRepData ? <TrendPill label="Best reps" delta={history.latest.trend.repDelta} /> : history.latest.trend?.hasTimeData ? <TrendPill label="Best hold" delta={history.latest.trend.timeDelta} suffix="s" /> : <TrendPill label="Best reps" delta={null} emptyLabel="No prior log" />}
                       <TrendPill label="Load" delta={history.latest.trend?.loadDelta ?? null} suffix=" lb" />
                     </div>
                   </div>
@@ -1398,13 +1473,13 @@ export default function TrainingLogDashboard() {
           </div>
         )}
 
-        {activeTab === "progress" && <SectionCard title="Exercise progress cards" subtitle="Grouped across repeated movement patterns"><div style={{ display: "grid", gap: 14 }}>{filteredHistories.map((history) => <ExerciseHistoryCard key={history.canonicalName} history={history} />)}</div></SectionCard>}
+        {activeTab === "progress" && <SectionCard title="Exercise progress cards" subtitle="Repeated movement patterns, first-to-latest session history, and progression markers."><div style={{ display: "grid", gap: 16 }}>{filteredHistories.map((history) => <ExerciseHistoryCard key={history.canonicalName} history={history} />)}</div></SectionCard>}
 
-        {activeTab === "groups" && <div style={{ display: "grid", gap: 16 }}><SectionCard title="Balance snapshot" subtitle="Use this view to spot concentration, under-served areas, and where volume is clustering"><div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.1fr) minmax(280px, 0.9fr)", gap: 16 }}><div style={{ display: "grid", gap: 14 }}>{taxonomyInsights.familyDistribution.map((family) => { const tone = familyColors[family.family] ?? familyColors.Mixed; return <DistributionBar key={family.family} label={family.family} detail={`${family.totalSets} sets across ${family.groupCount} groups`} percent={family.share} color={tone.color} />; })}</div><div style={{ display: "grid", gap: 12 }}>{taxonomyInsights.balanceNotes.map((note) => <InsightCalloutCard key={note.id} title={note.title} body={note.body} tone={note.tone} />)}</div></div></SectionCard><SectionCard title="Neglected groups" subtitle="Movement buckets that have gone quiet relative to the rest of the log"><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>{taxonomyInsights.neglectedGroups.map((group) => <div key={`${group.family}-${group.group}-neglected`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, background: theme.surfaceStrong, display: "grid", gap: 8 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}><div><div style={{ fontWeight: 700, color: theme.text }}>{group.group}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.family}</div></div><div style={{ fontSize: 12, color: theme.textMuted }}>{group.share}% of sets</div></div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.totalSets} sets · {group.sessionCount} appearances</div><div style={{ fontSize: 13, color: theme.textMuted }}>Last emphasized {group.latestDateLabel} · {group.daysSinceLatest} day gap</div></div>)}</div></SectionCard><SectionCard title="Taxonomy groups" subtitle="Detailed movement buckets, now with balance context instead of just rolled-up lists"><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "start" }}>{filteredGroups.map((group) => <div key={`${group.family}-${group.group}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, display: "grid", gap: 14, background: theme.surface, boxShadow: theme.shadow, alignContent: "start" }}>{renderGroupHeader(group)}<div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 14, color: theme.textSoft }}><span>{group.exerciseCount} movements</span><span>{group.sessionCount} appearances</span><span>{group.totalSets} sets</span><span>{Math.round((group.totalSets / Math.max(totalParsedSets, 1)) * 100)}% of all parsed sets</span></div><div style={{ display: "grid", gap: 8, alignContent: "start" }}>{group.topExercises.slice(0, 5).map((exercise) => <div key={exercise.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ marginTop: 4, fontSize: 13, color: theme.textSoft }}>{exercise.sessionCount} sessions · best load {formatLoad(exercise.bestLoad)}</div></div>)}</div></div>)}</div></SectionCard></div>}
+        {activeTab === "groups" && <div style={{ display: "grid", gap: 18 }}><SectionCard title="Balance snapshot" subtitle="Spot where volume is concentrated, where coverage drops off, and which buckets are driving the split."><div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.1fr) minmax(280px, 0.9fr)", gap: 18 }}><div style={{ display: "grid", gap: 14 }}>{taxonomyInsights.familyDistribution.map((family) => { const tone = familyColors[family.family] ?? familyColors.Mixed; return <DistributionBar key={family.family} label={family.family} detail={`${family.totalSets} sets across ${family.groupCount} groups`} percent={family.share} color={tone.color} />; })}</div><div style={{ display: "grid", gap: 14 }}>{taxonomyInsights.balanceNotes.map((note) => <InsightCalloutCard key={note.id} title={note.title} body={note.body} tone={note.tone} />)}</div></div></SectionCard><SectionCard title="Neglected groups" subtitle="Movement buckets that have gone quiet relative to the rest of the log."><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>{taxonomyInsights.neglectedGroups.map((group) => <div key={`${group.family}-${group.group}-neglected`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 10 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}><div><div style={{ fontWeight: 700, color: theme.text }}>{group.group}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.family}</div></div><div style={{ fontSize: 12, color: theme.textMuted }}>{group.share}% of sets</div></div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.totalSets} sets · {group.sessionCount} appearances</div><div style={{ fontSize: 13, color: theme.textMuted }}>Last emphasized {group.latestDateLabel} · {group.daysSinceLatest} day gap</div></div>)}</div></SectionCard><SectionCard title="Taxonomy groups" subtitle="Detailed movement buckets with volume, coverage, and top exercise examples."><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18, alignItems: "start" }}>{filteredGroups.map((group) => <div key={`${group.family}-${group.group}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, display: "grid", gap: 14, background: theme.surface, boxShadow: theme.shadow, alignContent: "start" }}>{renderGroupHeader(group)}<div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 14, color: theme.textSoft }}><span>{group.exerciseCount} movements</span><span>{group.sessionCount} appearances</span><span>{group.totalSets} sets</span><span>{Math.round((group.totalSets / Math.max(totalParsedSets, 1)) * 100)}% of all parsed sets</span></div><div style={{ display: "grid", gap: 10, alignContent: "start" }}>{group.topExercises.slice(0, 5).map((exercise) => <div key={exercise.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ marginTop: 4, fontSize: 13, color: theme.textSoft }}>{exercise.sessionCount} sessions · best load {formatLoad(exercise.bestLoad)}</div></div>)}</div></div>)}</div></SectionCard></div>}
 
         {activeTab === "workouts" && (
-          <SectionCard title="Structured workout log" subtitle="Review, edit, and refine workouts directly from the log without overwriting the original seed data">
-            <div style={{ display: "grid", gap: 16 }}>
+          <SectionCard title="Structured workout log" subtitle="Review, edit, and refine workouts directly from the log without overwriting the original seed data.">
+            <div style={{ display: "grid", gap: 18 }}>
               {workoutEditError ? <div style={{ border: `1px solid ${insightTones.warning.border}`, background: insightTones.warning.background, color: insightTones.warning.accent, borderRadius: 12, padding: 12 }}>{workoutEditError}</div> : null}
               {workoutEditMessage ? <div style={{ border: `1px solid ${insightTones.positive.border}`, background: insightTones.positive.background, color: insightTones.positive.accent, borderRadius: 12, padding: 12 }}>{workoutEditMessage}</div> : null}
               {filteredWorkouts.map((workout) => {
@@ -1419,7 +1494,7 @@ export default function TrainingLogDashboard() {
                         <div style={{ fontSize: 14, color: theme.textSoft, marginTop: 4 }}>{workout.title}</div>
                       </div>
                     </summary>
-                    <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
+                    <div style={{ display: "grid", gap: 18, marginTop: 18 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           <MetricChip label="Circuits" value={workout.circuits.length} />
@@ -1427,9 +1502,9 @@ export default function TrainingLogDashboard() {
                           <MetricChip label="Parsed sets" value={workout.totalSets} />
                         </div>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {editRecord ? <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", border: `1px solid ${theme.border}`, background: theme.accentSoft, color: theme.accentStrong, fontSize: 12, fontWeight: 700 }}>Edited version</span> : null}
-                          <button type="button" onClick={() => beginWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>{isEditing ? "Editing…" : "Edit workout"}</button>
-                          {editRecord ? <button type="button" onClick={() => revertWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Revert edits</button> : null}
+                          {editRecord ? <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", border: `1px solid ${theme.border}`, background: theme.accentSoft, color: theme.accentStrong, fontSize: 12, fontWeight: 700 }}>Edited</span> : null}
+                          <button type="button" onClick={() => beginWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>{isEditing ? "Editing" : "Edit workout"}</button>
+                          {editRecord ? <button type="button" onClick={() => revertWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Restore original</button> : null}
                         </div>
                       </div>
 
@@ -1474,16 +1549,16 @@ export default function TrainingLogDashboard() {
                         </div>
                       ) : null}
 
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 18 }}>
                         {workout.circuits.map((circuit, circuitIndex) => (
-                          <div key={`${workout.workout}-${workout.date}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, display: "grid", gap: 12, background: theme.surfaceStrong }}>
+                          <div key={`${workout.workout}-${workout.date}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, display: "grid", gap: 14, background: theme.surfaceStrong }}>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                               <h4 style={{ margin: 0, fontSize: 16, color: theme.text }}>{circuit.name}</h4>
                               <span style={{ fontSize: 12, color: theme.textMuted }}>{circuit.totalSets} sets</span>
                             </div>
-                            <div style={{ display: "grid", gap: 12 }}>
+                            <div style={{ display: "grid", gap: 14 }}>
                               {circuit.exercises.map((exercise) => (
-                                <div key={exercise.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: theme.surface, display: "grid", gap: 10 }}>
+                                <div key={exercise.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "grid", gap: 10 }}>
                                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                                     <div>
                                       <div style={{ fontWeight: 700, color: theme.text }}>{exercise.movementLabel}</div>
@@ -1493,7 +1568,7 @@ export default function TrainingLogDashboard() {
                                     <GroupBadge family={exercise.taxonomy.family} group={exercise.taxonomy.group} compact />
                                   </div>
                                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                    {exercise.trend?.hasRepData ? <TrendPill label="Best reps" delta={exercise.trend.repDelta} compact /> : exercise.trend?.hasTimeData ? <TrendPill label="Best hold" delta={exercise.trend.timeDelta} suffix="s" compact /> : <TrendPill label="Best reps" delta={null} emptyLabel="No baseline" compact />}
+                                    {exercise.trend?.hasRepData ? <TrendPill label="Best reps" delta={exercise.trend.repDelta} compact /> : exercise.trend?.hasTimeData ? <TrendPill label="Best hold" delta={exercise.trend.timeDelta} suffix="s" compact /> : <TrendPill label="Best reps" delta={null} emptyLabel="No prior log" compact />}
                                     <TrendPill label="Load" delta={exercise.trend?.loadDelta ?? null} suffix=" lb" compact />
                                   </div>
                                   <div style={{ display: "grid", gap: 6, color: theme.textSoft, fontSize: 14 }}>{exercise.variations.map((variation) => <div key={variation.id}>{variation.summary}</div>)}</div>
@@ -1511,11 +1586,11 @@ export default function TrainingLogDashboard() {
           </SectionCard>
         )}
 
-        {activeTab === "index" && <SectionCard title="Exercise index" subtitle="Movement buckets with session counts"><div style={{ maxHeight: 620, overflow: "auto", paddingRight: 4 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>{exerciseIndex.filter((exercise) => !query.trim() || normalizeText(`${exercise.name} ${exercise.family} ${exercise.group} ${exercise.exampleExerciseName}`).includes(normalizeText(query))).map((exercise) => <div key={`${exercise.family}-${exercise.group}-${exercise.name}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 12, display: "grid", gap: 8, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{exercise.exampleExerciseName}</div><GroupBadge family={exercise.family} group={exercise.group} /><div style={{ fontSize: 13, color: theme.textMuted }}>{exercise.sessionCount} session{exercise.sessionCount === 1 ? "" : "s"}</div></div>)}</div></div></SectionCard>}
+        {activeTab === "index" && <SectionCard title="Exercise index" subtitle="Movement buckets with example exercises and total session counts."><div style={{ maxHeight: 620, overflow: "auto", paddingRight: 4 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>{exerciseIndex.filter((exercise) => !query.trim() || normalizeText(`${exercise.name} ${exercise.family} ${exercise.group} ${exercise.exampleExerciseName}`).includes(normalizeText(query))).map((exercise) => <div key={`${exercise.family}-${exercise.group}-${exercise.name}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, display: "grid", gap: 8, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{exercise.exampleExerciseName}</div><GroupBadge family={exercise.family} group={exercise.group} /><div style={{ fontSize: 13, color: theme.textMuted }}>{exercise.sessionCount} session{exercise.sessionCount === 1 ? "" : "s"}</div></div>)}</div></div></SectionCard>}
 
-        {activeTab === "intake" && <div style={{ display: "grid", gap: 16 }}><SectionCard title="Trainer note intake" subtitle={`Paste coach notes for ${activeClient?.name} in a natural writing style, preview the parse, then merge them into this client's dashboard`}><div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(280px, 0.9fr)", gap: 16 }}><div style={{ display: "grid", gap: 12 }}><textarea value={trainerNotes} onChange={(event) => setTrainerNotes(event.target.value)} spellCheck={false} style={{ width: "100%", minHeight: 420, resize: "vertical", padding: 14, borderRadius: 14, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, lineHeight: 1.6, boxSizing: "border-box" }} /><div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}><button type="button" onClick={previewTrainerNotes} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Preview parse</button><button type="button" onClick={importTrainerNotes} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Import into dashboard</button></div>{intakeError ? <div style={{ border: "1px solid #d5c5c0", background: "#e8ddda", color: "#7e645e", borderRadius: 12, padding: 12 }}>{intakeError}</div> : null}{intakeMessage ? <div style={{ border: "1px solid #c2cec0", background: "#d9e4d7", color: "#567053", borderRadius: 12, padding: 12 }}>{intakeMessage}</div> : null}</div><div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 12 }}><div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>Flexible parser cues</div><div style={{ fontSize: 13, color: theme.textSoft, lineHeight: 1.6 }}>The parser now tolerates loose headers, shorthand like `3x10`, unbulleted exercise rows, and softer section labels like `Warm Up`, `Circuit`, or `Finisher`.</div><pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.6, color: theme.textSoft }}>{trainerNotesExample}</pre></div></div></SectionCard><SectionCard title="Parsed preview" subtitle="Review confidence, structure, and flagged items before importing">{previewStructuredWorkouts.length === 0 ? <div style={{ color: theme.textSoft }}>No preview yet. Paste notes and click `Preview parse`.</div> : <div style={{ display: "grid", gap: 16 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}><InsightStatCard label="Previewed workouts" value={previewStructuredWorkouts.length} subtitle={`${trainerPreviewModel.totalWarnings} flagged review item${trainerPreviewModel.totalWarnings === 1 ? "" : "s"}`} tone={trainerPreviewModel.totalWarnings > 0 ? "warning" : "positive"} /><InsightStatCard label="Average confidence" value={`${trainerPreviewModel.averageConfidenceScore}%`} subtitle="Higher scores mean cleaner structure and fewer review flags" tone={trainerPreviewModel.averageConfidenceScore >= 80 ? "positive" : trainerPreviewModel.averageConfidenceScore >= 55 ? "neutral" : "warning"} /><InsightStatCard label="Existing workouts" value={structuredWorkouts.length} subtitle="Used to flag possible duplicate dates or workout numbers" tone="neutral" /></div>{trainerPreviewModel.cards.map((card) => <div key={card.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 14 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}><div style={{ display: "grid", gap: 4 }}><div style={{ fontWeight: 700, color: theme.text }}>Workout {card.workout.workout} · {card.workout.dateLabel}</div><div style={{ color: theme.textSoft }}>{card.workout.title}</div><div style={{ fontSize: 13, color: theme.textMuted }}>{card.summary}</div></div><ConfidenceBadge level={card.confidence} score={card.score} /></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><MetricChip label="Sections" value={card.sectionCount} /><MetricChip label="Exercises" value={card.exerciseCount} /><MetricChip label="Parsed sets" value={card.parsedSetCount} /></div><div style={{ display: "grid", gap: 8 }}><div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Likely focus</div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{card.topGroups.length > 0 ? card.topGroups.map((group) => <GroupBadge key={`${card.id}-${group.family}-${group.group}`} family={group.family} group={group.group} />) : <span style={{ color: theme.textSoft, fontSize: 13 }}>No focus groups detected yet.</span>}</div></div><div style={{ display: "grid", gap: 8 }}>{card.warnings.length > 0 ? card.warnings.map((warning) => <div key={`${card.id}-${warning}`} style={{ border: `1px solid ${insightTones.warning.border}`, borderRadius: 12, padding: 12, background: insightTones.warning.background, color: insightTones.warning.accent, fontSize: 13 }}>{warning}</div>) : <div style={{ border: `1px solid ${insightTones.positive.border}`, borderRadius: 12, padding: 12, background: insightTones.positive.background, color: insightTones.positive.accent, fontSize: 13 }}>No review flags. This preview looks ready to import.</div>}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>{card.workout.circuits.map((circuit, circuitIndex) => <div key={`${card.id}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: theme.surface }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div style={{ fontWeight: 600, color: theme.text }}>{circuit.name}</div><div style={{ fontSize: 12, color: theme.textMuted }}>{circuit.exercises.length} items</div></div><div style={{ marginTop: 8, display: "grid", gap: 6 }}>{circuit.exercises.slice(0, 3).map((exercise) => <div key={exercise.id} style={{ fontSize: 13, color: theme.textSoft }}>{exercise.movementLabel}</div>)}{circuit.exercises.length > 3 ? <div style={{ fontSize: 12, color: theme.textMuted }}>+{circuit.exercises.length - 3} more</div> : null}</div></div>)}</div></div>)}</div>}</SectionCard></div>}
+        {activeTab === "intake" && <div style={{ display: "grid", gap: 18 }}><SectionCard title="Trainer note intake" subtitle={`Paste coach notes for ${activeClient?.name}, preview the parse, and merge them into this client's dashboard.`}><div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(280px, 0.9fr)", gap: 18 }}><div style={{ display: "grid", gap: 12 }}><textarea value={trainerNotes} onChange={(event) => setTrainerNotes(event.target.value)} spellCheck={false} style={{ width: "100%", minHeight: 420, resize: "vertical", padding: 14, borderRadius: 14, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, lineHeight: 1.6, boxSizing: "border-box" }} /><div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}><button type="button" onClick={previewTrainerNotes} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Preview parse</button><button type="button" onClick={importTrainerNotes} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Import workouts</button></div>{intakeError ? <div style={{ border: "1px solid #d5c5c0", background: "#e8ddda", color: "#7e645e", borderRadius: 12, padding: 12 }}>{intakeError}</div> : null}{intakeMessage ? <div style={{ border: "1px solid #c2cec0", background: "#d9e4d7", color: "#567053", borderRadius: 12, padding: 12 }}>{intakeMessage}</div> : null}</div><div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}><div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>Flexible parser cues</div><div style={{ fontSize: 13, color: theme.textSoft, lineHeight: 1.65 }}>The parser handles loose headers, shorthand like `3x10`, unbulleted exercise rows, and section labels like `Warm Up`, `Circuit`, or `Finisher`.</div><pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.6, color: theme.textSoft }}>{trainerNotesExample}</pre></div></div></SectionCard><SectionCard title="Parsed preview" subtitle="Review confidence, structure, and flagged items before importing.">{previewStructuredWorkouts.length === 0 ? <div style={{ color: theme.textSoft }}>No preview yet. Paste notes and click `Preview parse`.</div> : <div style={{ display: "grid", gap: 18 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}><InsightStatCard label="Previewed workouts" value={previewStructuredWorkouts.length} subtitle={`${trainerPreviewModel.totalWarnings} flagged review item${trainerPreviewModel.totalWarnings === 1 ? "" : "s"}`} tone={trainerPreviewModel.totalWarnings > 0 ? "warning" : "positive"} /><InsightStatCard label="Average confidence" value={`${trainerPreviewModel.averageConfidenceScore}%`} subtitle="Higher scores reflect cleaner structure and fewer review flags" tone={trainerPreviewModel.averageConfidenceScore >= 80 ? "positive" : trainerPreviewModel.averageConfidenceScore >= 55 ? "neutral" : "warning"} /><InsightStatCard label="Existing workouts" value={structuredWorkouts.length} subtitle="Used to flag duplicate dates or workout numbers" tone="neutral" /></div>{trainerPreviewModel.cards.map((card) => <div key={card.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 14 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}><div style={{ display: "grid", gap: 4 }}><div style={{ fontWeight: 700, color: theme.text }}>Workout {card.workout.workout} · {card.workout.dateLabel}</div><div style={{ color: theme.textSoft }}>{card.workout.title}</div><div style={{ fontSize: 13, color: theme.textMuted }}>{card.summary}</div></div><ConfidenceBadge level={card.confidence} score={card.score} /></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><MetricChip label="Sections" value={card.sectionCount} /><MetricChip label="Exercises" value={card.exerciseCount} /><MetricChip label="Parsed sets" value={card.parsedSetCount} /></div><div style={{ display: "grid", gap: 8 }}><div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Likely focus</div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{card.topGroups.length > 0 ? card.topGroups.map((group) => <GroupBadge key={`${card.id}-${group.family}-${group.group}`} family={group.family} group={group.group} />) : <span style={{ color: theme.textSoft, fontSize: 13 }}>No focus groups detected.</span>}</div></div><div style={{ display: "grid", gap: 8 }}>{card.warnings.length > 0 ? card.warnings.map((warning) => <div key={`${card.id}-${warning}`} style={{ border: `1px solid ${insightTones.warning.border}`, borderRadius: 12, padding: 12, background: insightTones.warning.background, color: insightTones.warning.accent, fontSize: 13 }}>{warning}</div>) : <div style={{ border: `1px solid ${insightTones.positive.border}`, borderRadius: 12, padding: 12, background: insightTones.positive.background, color: insightTones.positive.accent, fontSize: 13 }}>No review flags. Ready to import.</div>}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>{card.workout.circuits.map((circuit, circuitIndex) => <div key={`${card.id}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div style={{ fontWeight: 600, color: theme.text }}>{circuit.name}</div><div style={{ fontSize: 12, color: theme.textMuted }}>{circuit.exercises.length} items</div></div><div style={{ marginTop: 8, display: "grid", gap: 6 }}>{circuit.exercises.slice(0, 3).map((exercise) => <div key={exercise.id} style={{ fontSize: 13, color: theme.textSoft }}>{exercise.movementLabel}</div>)}{circuit.exercises.length > 3 ? <div style={{ fontSize: 12, color: theme.textMuted }}>+{circuit.exercises.length - 3} more</div> : null}</div></div>)}</div></div>)}</div>}</SectionCard></div>}
 
-        {activeTab === "weeks" && <SectionCard title="Weekly calorie and intensity targets" subtitle={`Target rows for ${activeClient?.name}`}>{activeWeeklyTargets.length === 0 ? <div style={{ color: theme.textSoft }}>No weekly targets stored for this client yet.</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>{activeWeeklyTargets.map((week) => <div key={week.week} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}><h3 style={{ margin: 0, fontSize: 16, color: theme.text }}>Week {week.week}</h3><span style={{ display: "inline-block", padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: week.intensity !== null ? theme.surfaceMuted : theme.surface, border: `1px solid ${theme.border}`, color: theme.textSoft }}>{week.intensity !== null ? `Intensity ${week.intensity}` : "No intensity logged"}</span></div><p style={{ margin: "12px 0 0", fontSize: 32, fontWeight: 700, color: theme.text }}>{week.calories.toLocaleString()}</p><p style={{ margin: "4px 0 0", fontSize: 14, color: theme.textSoft }}>target calories</p></div>)}</div>}</SectionCard>}
+        {activeTab === "weeks" && <SectionCard title="Weekly calorie and intensity targets" subtitle={`Target rows for ${activeClient?.name}.`}>{activeWeeklyTargets.length === 0 ? <div style={{ color: theme.textSoft }}>No weekly targets stored for this client yet.</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>{activeWeeklyTargets.map((week) => <div key={week.week} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}><h3 style={{ margin: 0, fontSize: 16, color: theme.text }}>Week {week.week}</h3><span style={{ display: "inline-block", padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: week.intensity !== null ? theme.surfaceMuted : theme.surface, border: `1px solid ${theme.border}`, color: theme.textSoft }}>{week.intensity !== null ? `Intensity ${week.intensity}` : "No intensity"}</span></div><p style={{ margin: "12px 0 0", fontSize: 32, fontWeight: 700, color: theme.text }}>{week.calories.toLocaleString()}</p><p style={{ margin: "4px 0 0", fontSize: 14, color: theme.textSoft }}>target calories</p></div>)}</div>}</SectionCard>}
       </div>
     </div>
   );
