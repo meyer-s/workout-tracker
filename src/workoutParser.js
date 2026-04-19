@@ -80,6 +80,8 @@ export function parseVariation(rawVariation, index) {
       countVolume: 0,
       timeVolume: 0,
       bestSet: 0,
+      bestCountSet: 0,
+      bestTimeSet: 0,
       summary: variationText,
     };
   }
@@ -97,6 +99,8 @@ export function parseVariation(rawVariation, index) {
     countVolume: sets.reduce((sum, set) => sum + set.totalCount, 0),
     timeVolume: sets.reduce((sum, set) => sum + set.totalTime, 0),
     bestSet: sets.reduce((max, set) => Math.max(max, set.total), 0),
+    bestCountSet: sets.reduce((max, set) => Math.max(max, set.totalCount), 0),
+    bestTimeSet: sets.reduce((max, set) => Math.max(max, set.totalTime), 0),
     summary: `${loadText} · ${sets.length ? sets.map((set) => set.label).join(", ") : repText || "notes"}`,
   };
 }
@@ -279,6 +283,8 @@ export function parseExerciseItem(item, context) {
     totalVolume: variations.reduce((sum, variation) => sum + variation.volumeScore, 0),
     totalCountVolume: variations.reduce((sum, variation) => sum + variation.countVolume, 0),
     totalTimeVolume: variations.reduce((sum, variation) => sum + variation.timeVolume, 0),
+    bestCountSet: variations.reduce((max, variation) => Math.max(max, variation.bestCountSet ?? 0), 0),
+    bestTimeSet: variations.reduce((max, variation) => Math.max(max, variation.bestTimeSet ?? 0), 0),
     bestLoad: variations.reduce((max, variation) => variation.loadValue === null ? max : max === null ? variation.loadValue : Math.max(max, variation.loadValue), null),
     performanceScore: variations.reduce((sum, variation) => sum + variation.volumeScore, 0) + variations.reduce((sum, variation) => sum + variation.setCount, 0) * 4,
     searchText: normalizeText([name, movementPattern.label, taxonomy.family, taxonomy.group, detailText, context.circuitName, context.workoutTitle].join(" ")),

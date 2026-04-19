@@ -1,5 +1,21 @@
 import { dedupeWorkouts, formatDateLabel, groupBy, normalizeText, parseExerciseItem } from "./workoutParser";
 
+function getBestCountDelta(currentRecord, previousRecord) {
+  if (!previousRecord) return null;
+  if ((currentRecord.bestCountSet ?? 0) <= 0 && (previousRecord.bestCountSet ?? 0) <= 0) return null;
+  return (currentRecord.bestCountSet ?? 0) - (previousRecord.bestCountSet ?? 0);
+}
+
+function getBestTimeDelta(currentRecord, previousRecord) {
+  if (!previousRecord) return null;
+  if ((currentRecord.bestTimeSet ?? 0) <= 0 && (previousRecord.bestTimeSet ?? 0) <= 0) return null;
+  return (currentRecord.bestTimeSet ?? 0) - (previousRecord.bestTimeSet ?? 0);
+}
+
+function getGrowthScore({ loadDelta, bestCountDelta, bestTimeDelta, setDelta, sessionCount }) {
+  return (loadDelta ?? 0) * 5 + (bestCountDelta ?? 0) * 3 + (bestTimeDelta ?? 0) / 5 + setDelta * 2 + Math.max(sessionCount - 1, 0) * 3;
+}
+
 export function buildDashboardData(workoutList) {
   const structuredWorkouts = dedupeWorkouts(workoutList).map((workout, workoutIndex) => {
     const circuits = workout.circuits.map((circuit, circuitIndex) => {
@@ -41,7 +57,8 @@ export function buildDashboardData(workoutList) {
       const first = sortedRecords[0];
       const latest = sortedRecords[sortedRecords.length - 1];
       const loadDelta = first.bestLoad !== null && latest.bestLoad !== null ? latest.bestLoad - first.bestLoad : null;
-      const volumeDelta = latest.totalVolume - first.totalVolume;
+      const bestCountDelta = getBestCountDelta(latest, first);
+      const bestTimeDelta = getBestTimeDelta(latest, first);
       const setDelta = latest.totalSets - first.totalSets;
       return {
         canonicalName: first.movementKey,
@@ -55,9 +72,10 @@ export function buildDashboardData(workoutList) {
         first,
         latest,
         loadDelta,
-        volumeDelta,
+        bestCountDelta,
+        bestTimeDelta,
         setDelta,
-        growthScore: (loadDelta ?? 0) * 5 + volumeDelta + setDelta * 3 + (sortedRecords.length - 1) * 4,
+        growthScore: getGrowthScore({ loadDelta, bestCountDelta, bestTimeDelta, setDelta, sessionCount: sortedRecords.length }),
         searchText: normalizeText([first.movementLabel, first.name, first.taxonomy.family, first.taxonomy.group, ...sortedRecords.map((record) => `${record.workoutTitle} ${record.date} ${record.raw}`)].join(" ")),
         records: sortedRecords,
       };
@@ -69,11 +87,11 @@ export function buildDashboardData(workoutList) {
       const previousRecord = index > 0 ? history.records[index - 1] : null;
       record.trend = {
         previousDateLabel: previousRecord?.dateLabel ?? null,
-        repDelta: previousRecord ? record.totalCountVolume - previousRecord.totalCountVolume : null,
-        timeDelta: previousRecord ? record.totalTimeVolume - previousRecord.totalTimeVolume : null,
+        repDelta: getBestCountDelta(record, previousRecord),
+        timeDelta: getBestTimeDelta(record, previousRecord),
         loadDelta: previousRecord && record.bestLoad !== null && previousRecord.bestLoad !== null ? record.bestLoad - previousRecord.bestLoad : null,
-        hasRepData: record.totalCountVolume > 0 || (previousRecord?.totalCountVolume ?? 0) > 0,
-        hasTimeData: record.totalTimeVolume > 0 || (previousRecord?.totalTimeVolume ?? 0) > 0,
+        hasRepData: (record.bestCountSet ?? 0) > 0 || (previousRecord?.bestCountSet ?? 0) > 0,
+        hasTimeData: (record.bestTimeSet ?? 0) > 0 || (previousRecord?.bestTimeSet ?? 0) > 0,
       };
     });
   });

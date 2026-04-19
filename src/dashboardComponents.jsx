@@ -55,9 +55,9 @@ export function SectionCard({ title, subtitle = "", children }) {
   );
 }
 
-export function GroupBadge({ family, group }) {
+export function GroupBadge({ family, group, compact = false }) {
   const tone = familyColors[family] ?? familyColors.Mixed;
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 10px", background: tone.background, color: tone.color, border: `1px solid ${tone.border}`, fontSize: 12, fontWeight: 700 }}>{family} · {group}</span>;
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: compact ? 4 : 6, alignSelf: "flex-start", width: "fit-content", maxWidth: "100%", borderRadius: 999, padding: compact ? "5px 8px" : "6px 10px", background: tone.background, color: tone.color, border: `1px solid ${tone.border}`, fontSize: compact ? 11 : 12, lineHeight: 1.1, fontWeight: compact ? 600 : 700 }}>{family} · {group}</span>;
 }
 
 export function MetricChip({ label, value }) {
@@ -69,12 +69,26 @@ export function MetricChip({ label, value }) {
   );
 }
 
-export function TrendPill({ label, delta, suffix = "", emptyLabel = "No baseline" }) {
+export function TrendPill({ label, delta, suffix = "", emptyLabel = "No baseline", compact = false }) {
   const tone = getTrendTone(delta);
+  const pillStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: compact ? 4 : 6,
+    borderRadius: 999,
+    padding: compact ? "5px 8px" : "6px 10px",
+    border: `1px solid ${tone.border}`,
+    background: tone.background,
+    color: tone.color,
+    fontSize: compact ? 11 : 12,
+    fontWeight: 700,
+    lineHeight: 1.1,
+    width: "fit-content",
+  };
   if (delta === null) {
-    return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 10px", border: `1px solid ${tone.border}`, background: tone.background, color: tone.color, fontSize: 12, fontWeight: 700 }}><span>{label}</span><span>{emptyLabel}</span></span>;
+    return <span style={pillStyle}><span>{label}</span><span style={{ opacity: compact ? 0.7 : 0.8 }}>{compact ? "n/a" : emptyLabel}</span></span>;
   }
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 10px", border: `1px solid ${tone.border}`, background: tone.background, color: tone.color, fontSize: 12, fontWeight: 700 }}><span>{tone.symbol}</span><span>{getTrendMessage(delta)}</span><span style={{ opacity: 0.8 }}>{label.toLowerCase()}</span><span>{`${delta > 0 ? "+" : ""}${delta}${suffix}`}</span></span>;
+  return <span style={pillStyle}><span>{tone.symbol}</span><span>{compact ? label : getTrendMessage(delta)}</span>{compact ? null : <span style={{ opacity: 0.8 }}>{label.toLowerCase()}</span>}<span>{`${delta > 0 ? "+" : ""}${delta}${suffix}`}</span></span>;
 }
 
 export function ExerciseHistoryCard({ history }) {
