@@ -1280,6 +1280,34 @@ export default function TrainingLogDashboard() {
     );
   };
 
+  const tabOptions = [["overview", "Overview"], ["cycles", "Cycles"], ["progress", "Growth"], ["groups", "Taxonomy"], ["workouts", "Workout log"], ["index", "Exercise index"], ["intake", "Trainer intake"], ["weeks", "Weekly targets"]];
+  const pageSectionGap = 24;
+  const sectionGridStyle = { display: "grid", gap: pageSectionGap };
+  const splitSectionStyle = { display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(300px, 0.95fr)", gap: 20, alignItems: "start" };
+  const cycleHighlights = [
+    {
+      id: "microcycle",
+      label: "Microcycle",
+      title: cycleInsights.microcycle.label,
+      detail: `${cycleInsights.microcycle.sessionCount || 0} sessions · ${cycleInsights.microcycle.totalSets} total sets`,
+      accent: cycleInsights.microcycle.deltaPercent === null ? "No baseline yet" : `${cycleInsights.microcycle.deltaPercent > 0 ? "+" : ""}${cycleInsights.microcycle.deltaPercent}% vs prior microcycle`,
+    },
+    {
+      id: "mesocycle",
+      label: "Mesocycle",
+      title: cycleInsights.mesocycle.currentBlock?.weekRange ?? "No block yet",
+      detail: cycleInsights.mesocycle.currentBlock ? `${cycleInsights.mesocycle.currentBlock.totalCalories.toLocaleString()} calories across the current 4-week block` : "Add weekly targets to surface rolling blocks.",
+      accent: cycleInsights.mesocycle.currentBlock?.deltaPercent === null || cycleInsights.mesocycle.currentBlock?.deltaPercent === undefined ? "First block on record" : `${cycleInsights.mesocycle.currentBlock.deltaPercent > 0 ? "+" : ""}${cycleInsights.mesocycle.currentBlock.deltaPercent}% vs prior block`,
+    },
+    {
+      id: "macrocycle",
+      label: "Macrocycle",
+      title: `${cycleInsights.macrocycle.totalWeeks} tracked weeks`,
+      detail: cycleInsights.macrocycle.peakWeek ? `Peak week: Week ${cycleInsights.macrocycle.peakWeek.week} at ${cycleInsights.macrocycle.peakWeek.calories.toLocaleString()} calories` : "Add weekly targets to map the long arc.",
+      accent: cycleInsights.macrocycle.deltaPercent === null ? "No start-to-now delta yet" : `${cycleInsights.macrocycle.deltaPercent > 0 ? "+" : ""}${cycleInsights.macrocycle.deltaPercent}% from start to latest week`,
+    },
+  ];
+
   return (
     <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${theme.backgroundAccent} 0%, ${theme.background} 100%)`, padding: 28, fontFamily: "Arial, Helvetica, sans-serif", color: theme.text }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
@@ -1328,23 +1356,23 @@ export default function TrainingLogDashboard() {
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-          {[["overview", "Overview"], ["progress", "Growth"], ["groups", "Taxonomy"], ["workouts", "Workout log"], ["index", "Exercise index"], ["intake", "Trainer intake"], ["weeks", "Weekly targets"]].map(([value, label]) => {
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 28 }}>
+          {tabOptions.map(([value, label]) => {
             const isActive = activeTab === value;
             return <button key={value} type="button" onClick={() => setActiveTab(value)} style={{ border: `1px solid ${isActive ? theme.borderStrong : theme.border}`, background: isActive ? theme.accent : theme.surface, color: isActive ? "#f4f6f1" : theme.text, borderRadius: 14, padding: "10px 14px", cursor: "pointer", fontWeight: 600, boxShadow: isActive ? theme.shadow : "none" }}>{label}</button>;
           })}
         </div>
 
         {activeTab === "overview" && (
-          <div style={{ display: "grid", gap: 18 }}>
+          <div style={sectionGridStyle}>
             <SectionCard title="What stands out" subtitle="A quick read on what changed, what is working, and where the plan is getting narrow.">
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(280px, 0.9fr)", gap: 18 }}>
-                <div style={{ display: "grid", gap: 14 }}>
+              <div style={splitSectionStyle}>
+                <div style={{ display: "grid", gap: 16 }}>
                   {overviewInsights.callouts.map((callout) => (
                     <InsightCalloutCard key={callout.id} title={callout.title} body={callout.body} tone={callout.tone} />
                   ))}
                 </div>
-                <div style={{ display: "grid", gap: 14 }}>
+                <div style={{ display: "grid", gap: 16 }}>
                   <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Recent focus</div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1362,7 +1390,28 @@ export default function TrainingLogDashboard() {
                 </div>
               </div>
             </SectionCard>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18 }}>
+            <SectionCard title="Cycle snapshot" subtitle="Micro, meso, and macrocycle readouts now live in their own tab, with a fast summary here.">
+              <div style={{ display: "grid", gap: 18 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ display: "grid", gap: 6, maxWidth: 760 }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: theme.text }}>Cycle context is now separated from the taxonomy and growth views.</div>
+                    <div style={{ fontSize: 14, color: theme.textSoft, lineHeight: 1.6 }}>Use the `Cycles` tab for the full breakdown. It shows recent session rhythm, 4-week target blocks, and the long-run calorie arc in one place.</div>
+                  </div>
+                  <button type="button" onClick={() => setActiveTab("cycles")} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 14, padding: "11px 16px", cursor: "pointer", fontWeight: 700, boxShadow: theme.shadow }}>Open Cycles tab</button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+                  {cycleHighlights.map((highlight) => (
+                    <div key={highlight.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>{highlight.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: theme.text }}>{highlight.title}</div>
+                      <div style={{ fontSize: 14, color: theme.textSoft, lineHeight: 1.55 }}>{highlight.detail}</div>
+                      <div style={{ fontSize: 13, color: theme.accentStrong, fontWeight: 600 }}>{highlight.accent}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
               <SectionCard title="Calories by week">
                 <div style={{ height: 320 }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -1378,79 +1427,6 @@ export default function TrainingLogDashboard() {
                 </div>
               </SectionCard>
             </div>
-            <SectionCard title="Cycle view" subtitle="A visual read on the current microcycle, rolling mesocycles, and the broader macrocycle arc.">
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18 }}>
-                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Microcycle</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: theme.text }}>{cycleInsights.microcycle.label}</div>
-                    <div style={{ fontSize: 13, color: theme.textSoft }}>Last {cycleInsights.microcycle.sessionCount || 0} sessions · {cycleInsights.microcycle.totalSets} total sets</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <MetricChip label="Avg sets" value={cycleInsights.microcycle.avgSets} />
-                    <MetricChip label="Load shift" value={cycleInsights.microcycle.deltaPercent === null ? "n/a" : `${cycleInsights.microcycle.deltaPercent > 0 ? "+" : ""}${cycleInsights.microcycle.deltaPercent}%`} />
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {cycleInsights.microcycle.focus.length > 0 ? cycleInsights.microcycle.focus.map((focus) => <span key={focus} style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13, fontWeight: 600 }}>{focus}</span>) : <span style={{ color: theme.textSoft, fontSize: 13 }}>No focus tags yet.</span>}
-                  </div>
-                  <div style={{ height: 220 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={cycleInsights.microcycle.data}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
-                        <XAxis dataKey="label" stroke={theme.textMuted} tick={{ fontSize: 12 }} />
-                        <YAxis stroke={theme.textMuted} />
-                        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 14, color: theme.text }} />
-                        <Bar dataKey="sets" fill={theme.accentStrong} radius={[8, 8, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Mesocycles</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: theme.text }}>{cycleInsights.mesocycle.currentBlock?.weekRange ?? "No block yet"}</div>
-                    <div style={{ fontSize: 13, color: theme.textSoft }}>{cycleInsights.mesocycle.currentBlock ? `${cycleInsights.mesocycle.currentBlock.totalCalories.toLocaleString()} calories in the current 4-week block` : "Add weekly targets to build mesocycle blocks."}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <MetricChip label="Avg calories" value={cycleInsights.mesocycle.currentBlock ? cycleInsights.mesocycle.currentBlock.avgCalories.toLocaleString() : "n/a"} />
-                    <MetricChip label="Avg intensity" value={cycleInsights.mesocycle.currentBlock?.avgIntensity ?? "n/a"} />
-                  </div>
-                  <div style={{ height: 220 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={cycleInsights.mesocycle.blocks}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
-                        <XAxis dataKey="label" stroke={theme.textMuted} tick={{ fontSize: 12 }} />
-                        <YAxis stroke={theme.textMuted} />
-                        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 14, color: theme.text }} />
-                        <Bar dataKey="totalCalories" fill={theme.accent} radius={[8, 8, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Macrocycle</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: theme.text }}>{cycleInsights.macrocycle.totalWeeks} tracked weeks</div>
-                    <div style={{ fontSize: 13, color: theme.textSoft }}>{cycleInsights.macrocycle.peakWeek ? `Peak week: Week ${cycleInsights.macrocycle.peakWeek.week} at ${cycleInsights.macrocycle.peakWeek.calories.toLocaleString()} calories` : "Add weekly targets to map the longer arc."}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <MetricChip label="Total calories" value={cycleInsights.macrocycle.totalCalories.toLocaleString()} />
-                    <MetricChip label="Start → now" value={cycleInsights.macrocycle.deltaPercent === null ? "n/a" : `${cycleInsights.macrocycle.deltaPercent > 0 ? "+" : ""}${cycleInsights.macrocycle.deltaPercent}%`} />
-                  </div>
-                  <div style={{ height: 220 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={cycleInsights.macrocycle.data}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
-                        <XAxis dataKey="week" stroke={theme.textMuted} tick={{ fontSize: 12 }} />
-                        <YAxis stroke={theme.textMuted} />
-                        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 14, color: theme.text }} />
-                        <Line type="monotone" dataKey="cumulativeCalories" stroke={theme.accentStrong} strokeWidth={3} dot={{ fill: theme.accentStrong, stroke: theme.surface, r: 3 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
             <SectionCard title="Growth highlights" subtitle="Repeated movement buckets with the clearest progression signal.">
               <div style={{ display: "grid", gap: 14 }}>
                 {topGrowthLeaders.map((history) => (
@@ -1473,9 +1449,176 @@ export default function TrainingLogDashboard() {
           </div>
         )}
 
+        {activeTab === "cycles" && (
+          <div style={sectionGridStyle}>
+            <SectionCard title="Cycle dashboard" subtitle="Dedicated microcycle, mesocycle, and macrocycle context so it does not get lost inside the other tabs.">
+              <div style={{ display: "grid", gap: 20 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 0.8fr)", gap: 20, alignItems: "start" }}>
+                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 20, background: theme.surfaceStrong, display: "grid", gap: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Cycle headline</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: theme.text }}>Current block: {cycleInsights.mesocycle.currentBlock?.weekRange ?? "No mesocycle block yet"}</div>
+                    <div style={{ fontSize: 15, color: theme.textSoft, lineHeight: 1.65 }}>Recent sessions are tracking as a microcycle from {cycleInsights.microcycle.label}. Weekly targets roll into 4-week mesocycles, while the macrocycle shows the full calorie climb from the first logged week to the latest one.</div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <MetricChip label="Microcycle sets" value={cycleInsights.microcycle.totalSets} />
+                      <MetricChip label="Current block calories" value={cycleInsights.mesocycle.currentBlock ? cycleInsights.mesocycle.currentBlock.totalCalories.toLocaleString() : "n/a"} />
+                      <MetricChip label="Macrocycle total" value={cycleInsights.macrocycle.totalCalories.toLocaleString()} />
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gap: 14 }}>
+                    {cycleHighlights.map((highlight) => (
+                      <div key={highlight.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surface, boxShadow: theme.shadow, display: "grid", gap: 8 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>{highlight.label}</div>
+                        <div style={{ fontSize: 17, fontWeight: 700, color: theme.text }}>{highlight.title}</div>
+                        <div style={{ fontSize: 13, color: theme.textSoft, lineHeight: 1.55 }}>{highlight.detail}</div>
+                        <div style={{ fontSize: 13, color: theme.accentStrong, fontWeight: 600 }}>{highlight.accent}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+                  {cycleInsights.mesocycle.blocks.map((block) => (
+                    <div key={block.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surface, display: "grid", gap: 10, boxShadow: theme.shadow }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                        <div style={{ fontWeight: 700, color: theme.text }}>{block.label}</div>
+                        <span style={{ fontSize: 12, color: theme.textMuted }}>{block.weekRange}</span>
+                      </div>
+                      <div style={{ fontSize: 14, color: theme.textSoft }}>{block.totalCalories.toLocaleString()} calories · avg {block.avgCalories.toLocaleString()}</div>
+                      <div style={{ fontSize: 13, color: theme.textMuted }}>Intensity {block.avgIntensity ?? "n/a"} · peak Week {block.peakWeek.week}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: block.deltaPercent !== null && block.deltaPercent < 0 ? insightTones.warning.accent : theme.accentStrong }}>{block.deltaPercent === null ? "Baseline block" : `${block.deltaPercent > 0 ? "+" : ""}${block.deltaPercent}% vs prior block`}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+              <SectionCard title="Microcycle" subtitle="The last three sessions and the focus groups driving them.">
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <MetricChip label="Avg sets" value={cycleInsights.microcycle.avgSets} />
+                    <MetricChip label="Load shift" value={cycleInsights.microcycle.deltaPercent === null ? "n/a" : `${cycleInsights.microcycle.deltaPercent > 0 ? "+" : ""}${cycleInsights.microcycle.deltaPercent}%`} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {cycleInsights.microcycle.focus.length > 0 ? cycleInsights.microcycle.focus.map((focus) => <span key={focus} style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: theme.surfaceStrong, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13, fontWeight: 600 }}>{focus}</span>) : <span style={{ color: theme.textSoft, fontSize: 13 }}>No focus tags yet.</span>}
+                  </div>
+                  <div style={{ height: 240 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={cycleInsights.microcycle.data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
+                        <XAxis dataKey="label" stroke={theme.textMuted} tick={{ fontSize: 12 }} />
+                        <YAxis stroke={theme.textMuted} />
+                        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 14, color: theme.text }} />
+                        <Bar dataKey="sets" fill={theme.accentStrong} radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Mesocycles" subtitle="Rolling 4-week blocks help show whether the weekly targets are ramping or tapering.">
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <MetricChip label="Avg calories" value={cycleInsights.mesocycle.currentBlock ? cycleInsights.mesocycle.currentBlock.avgCalories.toLocaleString() : "n/a"} />
+                    <MetricChip label="Avg intensity" value={cycleInsights.mesocycle.currentBlock?.avgIntensity ?? "n/a"} />
+                  </div>
+                  <div style={{ height: 240 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={cycleInsights.mesocycle.blocks}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
+                        <XAxis dataKey="label" stroke={theme.textMuted} tick={{ fontSize: 12 }} />
+                        <YAxis stroke={theme.textMuted} />
+                        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 14, color: theme.text }} />
+                        <Bar dataKey="totalCalories" fill={theme.accent} radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Macrocycle" subtitle="A cumulative look at the longer runway, not just the latest week.">
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <MetricChip label="Total calories" value={cycleInsights.macrocycle.totalCalories.toLocaleString()} />
+                    <MetricChip label="Start → now" value={cycleInsights.macrocycle.deltaPercent === null ? "n/a" : `${cycleInsights.macrocycle.deltaPercent > 0 ? "+" : ""}${cycleInsights.macrocycle.deltaPercent}%`} />
+                  </div>
+                  <div style={{ height: 240 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={cycleInsights.macrocycle.data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
+                        <XAxis dataKey="week" stroke={theme.textMuted} tick={{ fontSize: 12 }} />
+                        <YAxis stroke={theme.textMuted} />
+                        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 14, color: theme.text }} />
+                        <Line type="monotone" dataKey="cumulativeCalories" stroke={theme.accentStrong} strokeWidth={3} dot={{ fill: theme.accentStrong, stroke: theme.surface, r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </SectionCard>
+            </div>
+          </div>
+        )}
+
         {activeTab === "progress" && <SectionCard title="Exercise progress cards" subtitle="Repeated movement patterns, first-to-latest session history, and progression markers."><div style={{ display: "grid", gap: 16 }}>{filteredHistories.map((history) => <ExerciseHistoryCard key={history.canonicalName} history={history} />)}</div></SectionCard>}
 
-        {activeTab === "groups" && <div style={{ display: "grid", gap: 18 }}><SectionCard title="Balance snapshot" subtitle="Spot where volume is concentrated, where coverage drops off, and which buckets are driving the split."><div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.1fr) minmax(280px, 0.9fr)", gap: 18 }}><div style={{ display: "grid", gap: 14 }}>{taxonomyInsights.familyDistribution.map((family) => { const tone = familyColors[family.family] ?? familyColors.Mixed; return <DistributionBar key={family.family} label={family.family} detail={`${family.totalSets} sets across ${family.groupCount} groups`} percent={family.share} color={tone.color} />; })}</div><div style={{ display: "grid", gap: 14 }}>{taxonomyInsights.balanceNotes.map((note) => <InsightCalloutCard key={note.id} title={note.title} body={note.body} tone={note.tone} />)}</div></div></SectionCard><SectionCard title="Neglected groups" subtitle="Movement buckets that have gone quiet relative to the rest of the log."><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>{taxonomyInsights.neglectedGroups.map((group) => <div key={`${group.family}-${group.group}-neglected`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 10 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}><div><div style={{ fontWeight: 700, color: theme.text }}>{group.group}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.family}</div></div><div style={{ fontSize: 12, color: theme.textMuted }}>{group.share}% of sets</div></div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.totalSets} sets · {group.sessionCount} appearances</div><div style={{ fontSize: 13, color: theme.textMuted }}>Last emphasized {group.latestDateLabel} · {group.daysSinceLatest} day gap</div></div>)}</div></SectionCard><SectionCard title="Taxonomy groups" subtitle="Detailed movement buckets with volume, coverage, and top exercise examples."><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18, alignItems: "start" }}>{filteredGroups.map((group) => <div key={`${group.family}-${group.group}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, display: "grid", gap: 14, background: theme.surface, boxShadow: theme.shadow, alignContent: "start" }}>{renderGroupHeader(group)}<div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 14, color: theme.textSoft }}><span>{group.exerciseCount} movements</span><span>{group.sessionCount} appearances</span><span>{group.totalSets} sets</span><span>{Math.round((group.totalSets / Math.max(totalParsedSets, 1)) * 100)}% of all parsed sets</span></div><div style={{ display: "grid", gap: 10, alignContent: "start" }}>{group.topExercises.slice(0, 5).map((exercise) => <div key={exercise.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ marginTop: 4, fontSize: 13, color: theme.textSoft }}>{exercise.sessionCount} sessions · best load {formatLoad(exercise.bestLoad)}</div></div>)}</div></div>)}</div></SectionCard></div>}
+        {activeTab === "groups" && (
+          <div style={sectionGridStyle}>
+            <SectionCard title="Balance snapshot" subtitle="Spot where volume is concentrated, where coverage drops off, and which buckets are driving the split.">
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.1fr) minmax(300px, 0.9fr)", gap: 20, alignItems: "start" }}>
+                <div style={{ display: "grid", gap: 16 }}>
+                  {taxonomyInsights.familyDistribution.map((family) => {
+                    const tone = familyColors[family.family] ?? familyColors.Mixed;
+                    return <DistributionBar key={family.family} label={family.family} detail={`${family.totalSets} sets across ${family.groupCount} groups`} percent={family.share} color={tone.color} />;
+                  })}
+                </div>
+                <div style={{ display: "grid", gap: 16 }}>
+                  {taxonomyInsights.balanceNotes.map((note) => <InsightCalloutCard key={note.id} title={note.title} body={note.body} tone={note.tone} />)}
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Neglected groups" subtitle="Movement buckets that have gone quiet relative to the rest of the log.">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+                {taxonomyInsights.neglectedGroups.map((group) => (
+                  <div key={`${group.family}-${group.group}-neglected`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: theme.text }}>{group.group}</div>
+                        <div style={{ fontSize: 13, color: theme.textSoft }}>{group.family}</div>
+                      </div>
+                      <div style={{ fontSize: 12, color: theme.textMuted }}>{group.share}% of sets</div>
+                    </div>
+                    <div style={{ fontSize: 13, color: theme.textSoft }}>{group.totalSets} sets · {group.sessionCount} appearances</div>
+                    <div style={{ fontSize: 13, color: theme.textMuted }}>Last emphasized {group.latestDateLabel} · {group.daysSinceLatest} day gap</div>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Taxonomy groups" subtitle="Detailed movement buckets with volume, coverage, and top exercise examples.">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, alignItems: "start" }}>
+                {filteredGroups.map((group) => (
+                  <div key={`${group.family}-${group.group}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 20, display: "grid", gap: 14, background: theme.surface, boxShadow: theme.shadow, alignContent: "start" }}>
+                    {renderGroupHeader(group)}
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 14, color: theme.textSoft }}>
+                      <span>{group.exerciseCount} movements</span>
+                      <span>{group.sessionCount} appearances</span>
+                      <span>{group.totalSets} sets</span>
+                      <span>{Math.round((group.totalSets / Math.max(totalParsedSets, 1)) * 100)}% of all parsed sets</span>
+                    </div>
+                    <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
+                      {group.topExercises.slice(0, 5).map((exercise) => (
+                        <div key={exercise.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surfaceStrong }}>
+                          <div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div>
+                          <div style={{ marginTop: 4, fontSize: 13, color: theme.textSoft }}>{exercise.sessionCount} sessions · best load {formatLoad(exercise.bestLoad)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+        )}
 
         {activeTab === "workouts" && (
           <SectionCard title="Structured workout log" subtitle="Review, edit, and refine workouts directly from the log without overwriting the original seed data.">
