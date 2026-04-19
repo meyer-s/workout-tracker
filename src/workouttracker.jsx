@@ -15,6 +15,23 @@ import {
   buildTaxonomyInsights,
   buildTrainerPreviewModel,
 } from "./dashboardViewModels";
+import {
+  theme,
+  familyColors,
+  SectionCard,
+  GroupBadge,
+  MetricChip,
+  TrendPill,
+  ExerciseHistoryCard,
+  InsightStatCard,
+  InsightCalloutCard,
+  DistributionBar,
+  ConfidenceBadge,
+  insightTones,
+} from "./dashboardComponents.jsx";
+import { buildDashboardData as buildAnalyticsData } from "./workoutAnalytics";
+import { dedupeWorkouts as dedupeWorkoutList, parseTrainerWorkoutNotes as parseTrainerNotes } from "./workoutParser";
+import { createEmptyCircuitDraft, createWorkoutDraft, getWorkoutKey, parseWorkoutDraft } from "./workoutEditor";
 
 const weeklyTargets = [
   { week: 1, calories: 4999, intensity: null },
@@ -405,6 +422,7 @@ const workouts = [
 ];
 
 const TRAINER_IMPORT_STORAGE_KEY = "workout-tracker-imported-workouts-v1";
+const EDITED_WORKOUT_STORAGE_KEY = "workout-tracker-edited-workouts-v1";
 const trainerNotesExample = `Workout 13 · 4/12
 Title: Trainer-written session title
 
@@ -420,32 +438,6 @@ Strength Circuit #2 (2x):
 Core:
 - Deadbugs @ 21
 - Plank @ 2:02`;
-
-const theme = {
-  background: "#edf1ea",
-  backgroundAccent: "#e5ebe2",
-  surface: "#f7f8f3",
-  surfaceStrong: "#eef1ea",
-  surfaceMuted: "#e8ece4",
-  border: "#cfd7cc",
-  borderStrong: "#bcc6b9",
-  text: "#2f3a33",
-  textSoft: "#5f6d63",
-  textMuted: "#7b877e",
-  accent: "#6e7f6f",
-  accentStrong: "#566557",
-  accentSoft: "#d8e0d2",
-  shadow: "0 10px 30px rgba(70, 84, 72, 0.08)",
-};
-
-const familyColors = {
-  "Upper Body": { background: "#d8e1dc", color: "#4f6558", border: "#c1cec4" },
-  "Lower Body": { background: "#dfe6d6", color: "#60714f", border: "#cbd5bf" },
-  Arms: { background: "#eadfcd", color: "#86684c", border: "#d9cbb5" },
-  Core: { background: "#ddd8e6", color: "#6a5f79", border: "#cac2d6" },
-  Athletic: { background: "#e5d9d6", color: "#7a615a", border: "#d5c4bf" },
-  Mixed: { background: "#e1e5de", color: "#687269", border: "#cfd6ce" },
-};
 
 const taxonomyRules = [
   { family: "Core", group: "Core", keywords: ["plank", "crunch", "deadbug", "hollow", "sit up", "russian twist", "twister", "leg lift", "l sit", "log roll", "reverse crunch", "toe touch", "flutter", "v up", "tornado", "stir the pot", "evil wheel", "bike crunch", "supermen", "knee tuck", "starfish", "core hackey", "swiss ball roll out"] },
@@ -1028,149 +1020,19 @@ function getTrendMessage(delta) {
   return "Holding steady";
 }
 
-function SectionCard({ title, subtitle = "", children }) {
-  return (
-    <section style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 20, boxShadow: theme.shadow }}>
-      {title ? (
-        <div style={{ padding: "18px 22px", borderBottom: `1px solid ${theme.border}` }}>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: theme.text }}>{title}</h2>
-          {subtitle ? <p style={{ margin: "6px 0 0", color: theme.textSoft, fontSize: 13 }}>{subtitle}</p> : null}
-        </div>
-      ) : null}
-      <div style={{ padding: 22 }}>{children}</div>
-    </section>
-  );
-}
-
-function StatCard({ title, value, subtitle }) {
-  return (
-    <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 18, padding: 20, boxShadow: theme.shadow }}>
-      <p style={{ margin: 0, fontSize: 14, color: theme.textSoft }}>{title}</p>
-      <p style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 700, color: theme.text }}>{value}</p>
-      {subtitle ? <p style={{ margin: "6px 0 0", fontSize: 12, color: theme.textMuted }}>{subtitle}</p> : null}
-    </div>
-  );
-}
-
-function GroupBadge({ family, group }) {
-  const tone = familyColors[family] ?? familyColors.Mixed;
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 10px", background: tone.background, color: tone.color, border: `1px solid ${tone.border}`, fontSize: 12, fontWeight: 700 }}>{family} · {group}</span>;
-}
-
-function MetricChip({ label, value }) {
-  return (
-    <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: "8px 10px", minWidth: 112, background: theme.surfaceStrong }}>
-      <div style={{ fontSize: 11, textTransform: "uppercase", color: theme.textMuted, letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4, color: theme.text }}>{value}</div>
-    </div>
-  );
-}
-
-const insightTones = {
-  positive: { background: "#d9e4d7", border: "#bcccb8", accent: "#567053", text: "#3f5441" },
-  warning: { background: "#e8ddda", border: "#d5c5c0", accent: "#7e645e", text: "#654f49" },
-  neutral: { background: theme.surfaceStrong, border: theme.border, accent: theme.accentStrong, text: theme.textSoft },
-};
-
-function InsightStatCard({ label, value, subtitle, tone = "neutral" }) {
-  const palette = insightTones[tone] ?? insightTones.neutral;
-  return (
-    <div style={{ background: palette.background, border: `1px solid ${palette.border}`, borderRadius: 18, padding: 18, boxShadow: theme.shadow, display: "grid", gap: 8 }}>
-      <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, color: palette.accent }}>{label}</div>
-      <div style={{ fontSize: 27, fontWeight: 700, color: theme.text }}>{value}</div>
-      <div style={{ fontSize: 13, color: palette.text, lineHeight: 1.5 }}>{subtitle}</div>
-    </div>
-  );
-}
-
-function InsightCalloutCard({ title, body, tone = "neutral" }) {
-  const palette = insightTones[tone] ?? insightTones.neutral;
-  return (
-    <div style={{ border: `1px solid ${palette.border}`, borderRadius: 16, padding: 16, background: palette.background, display: "grid", gap: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: palette.accent, textTransform: "uppercase", letterSpacing: 0.4 }}>{title}</div>
-      <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>{body}</div>
-    </div>
-  );
-}
-
-function DistributionBar({ label, detail, percent, color }) {
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-        <div>
-          <div style={{ fontWeight: 700, color: theme.text }}>{label}</div>
-          <div style={{ fontSize: 13, color: theme.textSoft }}>{detail}</div>
-        </div>
-        <div style={{ fontWeight: 700, color: theme.text }}>{percent}%</div>
-      </div>
-      <div style={{ width: "100%", height: 10, borderRadius: 999, background: theme.surfaceMuted, overflow: "hidden", border: `1px solid ${theme.border}` }}>
-        <div style={{ width: `${Math.max(6, percent)}%`, height: "100%", background: color, borderRadius: 999 }} />
-      </div>
-    </div>
-  );
-}
-
-function ConfidenceBadge({ level, score }) {
-  const tone = level === "High" ? insightTones.positive : level === "Medium" ? insightTones.neutral : insightTones.warning;
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "7px 11px", border: `1px solid ${tone.border}`, background: tone.background, color: tone.accent, fontSize: 12, fontWeight: 700 }}>
-      <span>{level} confidence</span>
-      <span style={{ opacity: 0.72 }}>{score}%</span>
-    </span>
-  );
-}
-
-function TrendPill({ label, delta, suffix = "", emptyLabel = "No baseline" }) {
-  const tone = getTrendTone(delta);
-  if (delta === null) {
-    return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 10px", border: `1px solid ${tone.border}`, background: tone.background, color: tone.color, fontSize: 12, fontWeight: 700 }}><span>{label}</span><span>{emptyLabel}</span></span>;
-  }
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 10px", border: `1px solid ${tone.border}`, background: tone.background, color: tone.color, fontSize: 12, fontWeight: 700 }}><span>{tone.symbol}</span><span>{getTrendMessage(delta)}</span><span style={{ opacity: 0.8 }}>{label.toLowerCase()}</span><span>{`${delta > 0 ? "+" : ""}${delta}${suffix}`}</span></span>;
-}
-
-function ExerciseHistoryCard({ history }) {
-  return (
-    <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{history.name}</div>
-          <div style={{ fontSize: 13, color: "#6b7280" }}>{history.exampleExerciseName}</div>
-          <GroupBadge family={history.taxonomy.family} group={history.taxonomy.group} />
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
-          <MetricChip label="Sessions" value={history.sessionCount} />
-          <MetricChip label="Best load" value={formatLoad(history.bestLoad)} />
-          <MetricChip label="Set change" value={formatDelta(history.setDelta)} />
-        </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-        <div style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, background: "#f9fafb" }}>
-          <div style={{ fontSize: 12, color: "#6b7280", textTransform: "uppercase" }}>First logged</div>
-          <div style={{ marginTop: 6, fontWeight: 600 }}>{history.first.dateLabel} · Workout {history.first.workoutNumber}</div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 14 }}>{history.first.variations.map((variation) => variation.summary).join(" • ")}</div>
-        </div>
-        <div style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, background: "#f9fafb" }}>
-          <div style={{ fontSize: 12, color: "#6b7280", textTransform: "uppercase" }}>Latest logged</div>
-          <div style={{ marginTop: 6, fontWeight: 600 }}>{history.latest.dateLabel} · Workout {history.latest.workoutNumber}</div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 14 }}>{history.latest.variations.map((variation) => variation.summary).join(" • ")}</div>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {history.latest.trend?.hasRepData ? <TrendPill label="Reps" delta={history.latest.trend.repDelta} /> : history.latest.trend?.hasTimeData ? <TrendPill label="Time" delta={history.latest.trend.timeDelta} suffix="s" /> : <TrendPill label="Reps" delta={null} emptyLabel="No baseline" />}
-        <TrendPill label="Load" delta={history.latest.trend?.loadDelta ?? null} suffix=" lb" />
-      </div>
-    </div>
-  );
-}
-
 export default function TrainingLogDashboard() {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [importedWorkouts, setImportedWorkouts] = useState([]);
+  const [editedWorkoutRecords, setEditedWorkoutRecords] = useState([]);
   const [trainerNotes, setTrainerNotes] = useState(trainerNotesExample);
   const [previewWorkouts, setPreviewWorkouts] = useState([]);
   const [intakeError, setIntakeError] = useState("");
   const [intakeMessage, setIntakeMessage] = useState("");
+  const [editingWorkoutKey, setEditingWorkoutKey] = useState("");
+  const [editingDraft, setEditingDraft] = useState(null);
+  const [workoutEditError, setWorkoutEditError] = useState("");
+  const [workoutEditMessage, setWorkoutEditMessage] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1178,9 +1040,26 @@ export default function TrainingLogDashboard() {
       const stored = window.localStorage.getItem(TRAINER_IMPORT_STORAGE_KEY);
       if (!stored) return;
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) setImportedWorkouts(dedupeWorkouts(parsed));
+      if (Array.isArray(parsed)) setImportedWorkouts(dedupeWorkoutList(parsed));
     } catch {
       window.localStorage.removeItem(TRAINER_IMPORT_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(EDITED_WORKOUT_STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        setEditedWorkoutRecords(parsed.filter((entry) => entry?.workout && entry?.originalKey).map((entry) => ({
+          originalKey: String(entry.originalKey),
+          workout: entry.workout,
+        })));
+      }
+    } catch {
+      window.localStorage.removeItem(EDITED_WORKOUT_STORAGE_KEY);
     }
   }, []);
 
@@ -1189,13 +1068,23 @@ export default function TrainingLogDashboard() {
     window.localStorage.setItem(TRAINER_IMPORT_STORAGE_KEY, JSON.stringify(importedWorkouts));
   }, [importedWorkouts]);
 
-  const mergedWorkouts = useMemo(() => dedupeWorkouts([...workouts, ...importedWorkouts]), [importedWorkouts]);
-  const dashboardData = useMemo(() => buildDashboardData(mergedWorkouts), [mergedWorkouts]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(EDITED_WORKOUT_STORAGE_KEY, JSON.stringify(editedWorkoutRecords));
+  }, [editedWorkoutRecords]);
+
+  const mergedWorkouts = useMemo(() => {
+    const overriddenKeys = new Set(editedWorkoutRecords.map((entry) => entry.originalKey));
+    const baseWorkouts = dedupeWorkoutList([...workouts, ...importedWorkouts]).filter((workout) => !overriddenKeys.has(getWorkoutKey(workout)));
+    return dedupeWorkoutList([...baseWorkouts, ...editedWorkoutRecords.map((entry) => entry.workout)]);
+  }, [editedWorkoutRecords, importedWorkouts]);
+  const dashboardData = useMemo(() => buildAnalyticsData(mergedWorkouts), [mergedWorkouts]);
   const { structuredWorkouts, exerciseHistories, taxonomySummary, exerciseIndex, repeatedExercises, topGrowthLeaders, totalParsedSets, dominantGroup } = dashboardData;
-  const previewStructuredWorkouts = useMemo(() => buildDashboardData(previewWorkouts).structuredWorkouts, [previewWorkouts]);
+  const previewStructuredWorkouts = useMemo(() => buildAnalyticsData(previewWorkouts).structuredWorkouts, [previewWorkouts]);
   const overviewInsights = useMemo(() => buildOverviewInsights(dashboardData, weeklyTargets), [dashboardData]);
   const taxonomyInsights = useMemo(() => buildTaxonomyInsights(dashboardData), [dashboardData]);
   const trainerPreviewModel = useMemo(() => buildTrainerPreviewModel(previewStructuredWorkouts, structuredWorkouts), [previewStructuredWorkouts, structuredWorkouts]);
+  const editRecordLookup = useMemo(() => new Map(editedWorkoutRecords.map((entry) => [getWorkoutKey(entry.workout), entry])), [editedWorkoutRecords]);
 
   const filteredWorkouts = useMemo(() => {
     if (!query.trim()) return structuredWorkouts;
@@ -1216,7 +1105,7 @@ export default function TrainingLogDashboard() {
   }, [query, taxonomySummary]);
 
   const previewTrainerNotes = () => {
-    const result = parseTrainerWorkoutNotes(trainerNotes, mergedWorkouts);
+    const result = parseTrainerNotes(trainerNotes, mergedWorkouts);
     if (result.errors.length > 0) {
       setIntakeError(result.errors.join(" "));
       setIntakeMessage("");
@@ -1229,17 +1118,83 @@ export default function TrainingLogDashboard() {
   };
 
   const importTrainerNotes = () => {
-    const result = parseTrainerWorkoutNotes(trainerNotes, mergedWorkouts);
+    const result = parseTrainerNotes(trainerNotes, mergedWorkouts);
     if (result.errors.length > 0) {
       setIntakeError(result.errors.join(" "));
       setIntakeMessage("");
       setPreviewWorkouts([]);
       return;
     }
-    setImportedWorkouts((current) => dedupeWorkouts([...current, ...result.workouts]));
+    setImportedWorkouts((current) => dedupeWorkoutList([...current, ...result.workouts]));
     setPreviewWorkouts(result.workouts);
     setIntakeError("");
     setIntakeMessage(`Imported ${result.workouts.length} workout${result.workouts.length === 1 ? "" : "s"} into the dashboard.`);
+  };
+
+  const beginWorkoutEdit = (workout) => {
+    setEditingWorkoutKey(getWorkoutKey(workout));
+    setEditingDraft(createWorkoutDraft(workout));
+    setWorkoutEditError("");
+    setWorkoutEditMessage("");
+  };
+
+  const cancelWorkoutEdit = () => {
+    setEditingWorkoutKey("");
+    setEditingDraft(null);
+    setWorkoutEditError("");
+  };
+
+  const updateWorkoutDraft = (field, value) => {
+    setEditingDraft((current) => current ? { ...current, [field]: value } : current);
+  };
+
+  const updateCircuitDraft = (index, field, value) => {
+    setEditingDraft((current) => current ? {
+      ...current,
+      circuits: current.circuits.map((circuit, circuitIndex) => circuitIndex === index ? { ...circuit, [field]: value } : circuit),
+    } : current);
+  };
+
+  const addCircuitDraft = () => {
+    setEditingDraft((current) => current ? {
+      ...current,
+      circuits: [...current.circuits, createEmptyCircuitDraft(current.circuits.length)],
+    } : current);
+  };
+
+  const removeCircuitDraft = (index) => {
+    setEditingDraft((current) => current ? {
+      ...current,
+      circuits: current.circuits.filter((_, circuitIndex) => circuitIndex !== index),
+    } : current);
+  };
+
+  const saveWorkoutEdit = () => {
+    if (!editingDraft || !editingWorkoutKey) return;
+    const existingWorkout = structuredWorkouts.find((workout) => getWorkoutKey(workout) === editingWorkoutKey);
+    const fallbackNumber = Number(existingWorkout?.workout) || Number(editingDraft.workout) || structuredWorkouts.length + 1;
+    const result = parseWorkoutDraft(editingDraft, fallbackNumber);
+    if (result.errors.length > 0) {
+      setWorkoutEditError(result.errors.join(" "));
+      setWorkoutEditMessage("");
+      return;
+    }
+    setEditedWorkoutRecords((current) => ([
+      ...current.filter((entry) => entry.originalKey !== editingWorkoutKey),
+      { originalKey: editingWorkoutKey, workout: result.workout },
+    ]));
+    setWorkoutEditError("");
+    setWorkoutEditMessage(`Saved edits for Workout ${result.workout.workout} · ${result.workout.date}.`);
+    setEditingWorkoutKey("");
+    setEditingDraft(null);
+  };
+
+  const revertWorkoutEdit = (workout) => {
+    const editRecord = editRecordLookup.get(getWorkoutKey(workout));
+    if (!editRecord) return;
+    setEditedWorkoutRecords((current) => current.filter((entry) => entry.originalKey !== editRecord.originalKey));
+    setWorkoutEditMessage(`Reverted edits for ${workout.title}.`);
+    if (editingWorkoutKey === editRecord.originalKey) cancelWorkoutEdit();
   };
 
   const renderGroupHeader = (group) => {
@@ -1353,7 +1308,114 @@ export default function TrainingLogDashboard() {
 
         {activeTab === "groups" && <div style={{ display: "grid", gap: 16 }}><SectionCard title="Balance snapshot" subtitle="Use this view to spot concentration, under-served areas, and where volume is clustering"><div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.1fr) minmax(280px, 0.9fr)", gap: 16 }}><div style={{ display: "grid", gap: 14 }}>{taxonomyInsights.familyDistribution.map((family) => { const tone = familyColors[family.family] ?? familyColors.Mixed; return <DistributionBar key={family.family} label={family.family} detail={`${family.totalSets} sets across ${family.groupCount} groups`} percent={family.share} color={tone.color} />; })}</div><div style={{ display: "grid", gap: 12 }}>{taxonomyInsights.balanceNotes.map((note) => <InsightCalloutCard key={note.id} title={note.title} body={note.body} tone={note.tone} />)}</div></div></SectionCard><SectionCard title="Neglected groups" subtitle="Movement buckets that have gone quiet relative to the rest of the log"><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>{taxonomyInsights.neglectedGroups.map((group) => <div key={`${group.family}-${group.group}-neglected`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, background: theme.surfaceStrong, display: "grid", gap: 8 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}><div><div style={{ fontWeight: 700, color: theme.text }}>{group.group}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.family}</div></div><div style={{ fontSize: 12, color: theme.textMuted }}>{group.share}% of sets</div></div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.totalSets} sets · {group.sessionCount} appearances</div><div style={{ fontSize: 13, color: theme.textMuted }}>Last emphasized {group.latestDateLabel} · {group.daysSinceLatest} day gap</div></div>)}</div></SectionCard><SectionCard title="Taxonomy groups" subtitle="Detailed movement buckets, now with balance context instead of just rolled-up lists"><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "start" }}>{filteredGroups.map((group) => <div key={`${group.family}-${group.group}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, display: "grid", gap: 14, background: theme.surface, boxShadow: theme.shadow, alignContent: "start" }}>{renderGroupHeader(group)}<div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 14, color: theme.textSoft }}><span>{group.exerciseCount} movements</span><span>{group.sessionCount} appearances</span><span>{group.totalSets} sets</span><span>{Math.round((group.totalSets / Math.max(totalParsedSets, 1)) * 100)}% of all parsed sets</span></div><div style={{ display: "grid", gap: 8, alignContent: "start" }}>{group.topExercises.slice(0, 5).map((exercise) => <div key={exercise.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ marginTop: 4, fontSize: 13, color: theme.textSoft }}>{exercise.sessionCount} sessions · best load {formatLoad(exercise.bestLoad)}</div></div>)}</div></div>)}</div></SectionCard></div>}
 
-        {activeTab === "workouts" && <SectionCard title="Structured workout log" subtitle="Now with repeated movement grouping and trend cues"><div style={{ display: "grid", gap: 16 }}>{filteredWorkouts.map((workout) => <details key={`${workout.workout}-${workout.date}`} style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, background: "#fff" }}><summary style={{ cursor: "pointer" }}><div style={{ display: "inline-block" }}><div style={{ fontWeight: 600 }}>Workout {workout.workout} · {workout.dateLabel}</div><div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>{workout.title}</div></div></summary><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, marginTop: 16 }}>{workout.circuits.map((circuit, circuitIndex) => <div key={`${workout.workout}-${workout.date}-${circuit.name}-${circuitIndex}`} style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 12 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><h4 style={{ margin: 0, fontSize: 16 }}>{circuit.name}</h4><span style={{ fontSize: 12, color: "#6b7280" }}>{circuit.totalSets} sets</span></div><div style={{ display: "grid", gap: 12 }}>{circuit.exercises.map((exercise) => <div key={exercise.id} style={{ border: "1px solid #f3f4f6", borderRadius: 14, padding: 12, background: "#f9fafb", display: "grid", gap: 10 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><div><div style={{ fontWeight: 700 }}>{exercise.movementLabel}</div><div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>{exercise.name}</div>{exercise.trend?.previousDateLabel ? <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>vs previous on {exercise.trend.previousDateLabel}</div> : <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>First time this movement appears in your log</div>}</div><GroupBadge family={exercise.taxonomy.family} group={exercise.taxonomy.group} /></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{exercise.trend?.hasRepData ? <TrendPill label="Reps" delta={exercise.trend.repDelta} /> : exercise.trend?.hasTimeData ? <TrendPill label="Time" delta={exercise.trend.timeDelta} suffix="s" /> : <TrendPill label="Reps" delta={null} emptyLabel="No baseline" />}<TrendPill label="Load" delta={exercise.trend?.loadDelta ?? null} suffix=" lb" /></div><div style={{ display: "grid", gap: 6, color: "#4b5563", fontSize: 14 }}>{exercise.variations.map((variation) => <div key={variation.id}>{variation.summary}</div>)}</div></div>)}</div></div>)}</div></details>)}</div></SectionCard>}
+        {activeTab === "workouts" && (
+          <SectionCard title="Structured workout log" subtitle="Review, edit, and refine workouts directly from the log without overwriting the original seed data">
+            <div style={{ display: "grid", gap: 16 }}>
+              {workoutEditError ? <div style={{ border: `1px solid ${insightTones.warning.border}`, background: insightTones.warning.background, color: insightTones.warning.accent, borderRadius: 12, padding: 12 }}>{workoutEditError}</div> : null}
+              {workoutEditMessage ? <div style={{ border: `1px solid ${insightTones.positive.border}`, background: insightTones.positive.background, color: insightTones.positive.accent, borderRadius: 12, padding: 12 }}>{workoutEditMessage}</div> : null}
+              {filteredWorkouts.map((workout) => {
+                const workoutKey = getWorkoutKey(workout);
+                const isEditing = editingWorkoutKey === workoutKey;
+                const editRecord = editRecordLookup.get(workoutKey);
+                return (
+                  <details key={workoutKey} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surface }}>
+                    <summary style={{ cursor: "pointer" }}>
+                      <div style={{ display: "inline-block" }}>
+                        <div style={{ fontWeight: 600, color: theme.text }}>Workout {workout.workout} · {workout.dateLabel}</div>
+                        <div style={{ fontSize: 14, color: theme.textSoft, marginTop: 4 }}>{workout.title}</div>
+                      </div>
+                    </summary>
+                    <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <MetricChip label="Circuits" value={workout.circuits.length} />
+                          <MetricChip label="Exercises" value={workout.exercises.length} />
+                          <MetricChip label="Parsed sets" value={workout.totalSets} />
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {editRecord ? <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", border: `1px solid ${theme.border}`, background: theme.accentSoft, color: theme.accentStrong, fontSize: 12, fontWeight: 700 }}>Edited version</span> : null}
+                          <button type="button" onClick={() => beginWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>{isEditing ? "Editing…" : "Edit workout"}</button>
+                          {editRecord ? <button type="button" onClick={() => revertWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Revert edits</button> : null}
+                        </div>
+                      </div>
+
+                      {isEditing && editingDraft ? (
+                        <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 14 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                            <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
+                              Workout #
+                              <input value={editingDraft.workout} onChange={(event) => updateWorkoutDraft("workout", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                            <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
+                              Date
+                              <input value={editingDraft.date} onChange={(event) => updateWorkoutDraft("date", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                            <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft, gridColumn: "span 2" }}>
+                              Title
+                              <input value={editingDraft.title} onChange={(event) => updateWorkoutDraft("title", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                          </div>
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {editingDraft.circuits.map((circuit, circuitIndex) => (
+                              <div key={`${workoutKey}-draft-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "grid", gap: 10 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                                  <label style={{ display: "grid", gap: 6, flex: "1 1 260px", fontSize: 13, color: theme.textSoft }}>
+                                    Circuit name
+                                    <input value={circuit.name} onChange={(event) => updateCircuitDraft(circuitIndex, "name", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text }} />
+                                  </label>
+                                  <button type="button" onClick={() => removeCircuitDraft(circuitIndex)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Remove circuit</button>
+                                </div>
+                                <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
+                                  Exercise lines
+                                  <textarea value={circuit.itemsText} onChange={(event) => updateCircuitDraft(circuitIndex, "itemsText", event.target.value)} spellCheck={false} style={{ minHeight: 120, resize: "vertical", padding: 12, borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", lineHeight: 1.5 }} />
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                            <button type="button" onClick={addCircuitDraft} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Add circuit</button>
+                            <button type="button" onClick={saveWorkoutEdit} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Save changes</button>
+                            <button type="button" onClick={cancelWorkoutEdit} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+                        {workout.circuits.map((circuit, circuitIndex) => (
+                          <div key={`${workout.workout}-${workout.date}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, display: "grid", gap: 12, background: theme.surfaceStrong }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                              <h4 style={{ margin: 0, fontSize: 16, color: theme.text }}>{circuit.name}</h4>
+                              <span style={{ fontSize: 12, color: theme.textMuted }}>{circuit.totalSets} sets</span>
+                            </div>
+                            <div style={{ display: "grid", gap: 12 }}>
+                              {circuit.exercises.map((exercise) => (
+                                <div key={exercise.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: theme.surface, display: "grid", gap: 10 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                                    <div>
+                                      <div style={{ fontWeight: 700, color: theme.text }}>{exercise.movementLabel}</div>
+                                      <div style={{ fontSize: 13, color: theme.textSoft, marginTop: 4 }}>{exercise.name}</div>
+                                      {exercise.trend?.previousDateLabel ? <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>Compared with {exercise.trend.previousDateLabel}</div> : <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>First appearance in the current log</div>}
+                                    </div>
+                                    <GroupBadge family={exercise.taxonomy.family} group={exercise.taxonomy.group} />
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    {exercise.trend?.hasRepData ? <TrendPill label="Reps" delta={exercise.trend.repDelta} /> : exercise.trend?.hasTimeData ? <TrendPill label="Time" delta={exercise.trend.timeDelta} suffix="s" /> : <TrendPill label="Reps" delta={null} emptyLabel="No baseline" />}
+                                    <TrendPill label="Load" delta={exercise.trend?.loadDelta ?? null} suffix=" lb" />
+                                  </div>
+                                  <div style={{ display: "grid", gap: 6, color: theme.textSoft, fontSize: 14 }}>{exercise.variations.map((variation) => <div key={variation.id}>{variation.summary}</div>)}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </SectionCard>
+        )}
 
         {activeTab === "index" && <SectionCard title="Exercise index" subtitle="Movement buckets with session counts"><div style={{ maxHeight: 620, overflow: "auto", paddingRight: 4 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>{exerciseIndex.filter((exercise) => !query.trim() || normalizeText(`${exercise.name} ${exercise.family} ${exercise.group} ${exercise.exampleExerciseName}`).includes(normalizeText(query))).map((exercise) => <div key={`${exercise.family}-${exercise.group}-${exercise.name}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 12, display: "grid", gap: 8, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{exercise.exampleExerciseName}</div><GroupBadge family={exercise.family} group={exercise.group} /><div style={{ fontSize: 13, color: theme.textMuted }}>{exercise.sessionCount} session{exercise.sessionCount === 1 ? "" : "s"}</div></div>)}</div></div></SectionCard>}
 

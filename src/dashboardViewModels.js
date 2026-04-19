@@ -160,11 +160,11 @@ export function buildOverviewInsights(dashboardData, weeklyTargets) {
     },
     {
       id: "attention",
-      label: "Needs attention",
+      label: "Worth revisiting",
       value: groupNeedingAttention ? groupNeedingAttention.group : "No gap detected",
       subtitle: groupNeedingAttention
         ? `Last showed up ${formatDays(groupNeedingAttention.daysSinceLatest)} ago on ${groupNeedingAttention.latestDateLabel}`
-        : "No stale movement group detected yet",
+        : "No obvious gap in the current log yet",
       tone: groupNeedingAttention && groupNeedingAttention.daysSinceLatest >= 10 ? "warning" : "neutral",
     },
   ];
@@ -174,7 +174,7 @@ export function buildOverviewInsights(dashboardData, weeklyTargets) {
       id: "load-shift",
       title: "What changed",
       body: previousWorkouts.length > 0
-        ? `Your latest ${recentWorkouts.length} sessions total ${recentSets} parsed sets, ${loadDeltaPercent > 0 ? "up" : loadDeltaPercent < 0 ? "down" : "flat"} ${Math.abs(loadDeltaPercent ?? 0)}% versus the prior block.`
+        ? `Your latest ${recentWorkouts.length} sessions total ${recentSets} parsed sets, ${loadDeltaPercent > 0 ? "up" : loadDeltaPercent < 0 ? "down" : "flat"} ${Math.abs(loadDeltaPercent ?? 0)}% versus the prior block. That is useful context for you and your trainer, not a verdict on the plan.`
         : "You have enough data to log sessions, but not yet enough history to compare rolling training load.",
       tone: getLoadTone(loadDeltaPercent),
     },
@@ -182,16 +182,16 @@ export function buildOverviewInsights(dashboardData, weeklyTargets) {
       id: "momentum",
       title: "What is working",
       body: topGrowth
-        ? `${topGrowth.name} is your clearest positive signal right now, with ${topGrowth.sessionCount} logged exposures and ${topGrowth.loadDelta !== null ? `${topGrowth.loadDelta > 0 ? "a" : "no"} load lift of ${topGrowth.loadDelta > 0 ? `+${topGrowth.loadDelta} lb` : `${topGrowth.loadDelta} lb`}` : `${topGrowth.volumeDelta > 0 ? `+${topGrowth.volumeDelta}` : topGrowth.volumeDelta} volume change`}.`
-        : "Once a few movements repeat across sessions, this panel can start calling out real progression instead of raw activity.",
+        ? `${topGrowth.name} stands out as a positive signal right now, with ${topGrowth.sessionCount} logged exposures and ${topGrowth.loadDelta !== null ? `${topGrowth.loadDelta > 0 ? `a +${topGrowth.loadDelta} lb change` : `${topGrowth.loadDelta} lb change`}` : `${topGrowth.volumeDelta > 0 ? `+${topGrowth.volumeDelta}` : topGrowth.volumeDelta} volume change`}. Consider it a conversation starter alongside your trainer's larger programming intent.`
+        : "Once a few movements repeat across sessions, this panel can highlight patterns without trying to replace your trainer's bigger-cycle planning.",
       tone: topGrowth ? "positive" : "neutral",
     },
     {
       id: "focus-gap",
-      title: "What needs attention",
+      title: "Where context may help",
       body: groupNeedingAttention
-        ? `${groupNeedingAttention.group} has gone the longest without showing up again. ${latestFocus.length > 0 ? `Recent focus has been ${latestFocus.join(" and ")}, so the plan may be getting narrow.` : "That is a useful signal for balancing the next few sessions."}`
-        : "No obvious gap yet. Keep an eye on whether your recent sessions keep touching multiple movement groups.",
+        ? `${groupNeedingAttention.group} has gone the longest without showing up again. ${latestFocus.length > 0 ? `Recent focus has been ${latestFocus.join(" and ")}, which may simply reflect the current block emphasis.` : "That is a gentle flag to review with the coach if it stays quiet for too long."}`
+        : "No obvious gap yet. This view can stay supportive by surfacing patterns without second-guessing the current macro, meso, or microcycle focus.",
       tone: groupNeedingAttention ? "warning" : "neutral",
     },
   ];
@@ -240,7 +240,7 @@ export function buildTaxonomyInsights(dashboardData) {
       ? {
         id: "family-imbalance",
         title: "Volume balance",
-        body: `${heaviestFamily.family} carries ${heaviestFamily.share}% of your parsed sets, while ${lightestFamily.family} sits at ${lightestFamily.share}%. This is the clearest high-level imbalance in the current log.`,
+        body: `${heaviestFamily.family} carries ${heaviestFamily.share}% of your parsed sets, while ${lightestFamily.family} sits at ${lightestFamily.share}%. That is useful context, while still leaving room for the trainer's intended emphasis in this phase.`,
         tone: heaviestFamily.share - lightestFamily.share >= 18 ? "warning" : "neutral",
       }
       : null,
@@ -248,7 +248,7 @@ export function buildTaxonomyInsights(dashboardData) {
       ? {
         id: "stale-group",
         title: "Most neglected group",
-        body: `${neglectedGroups[0].group} has been quiet for ${formatDays(neglectedGroups[0].daysSinceLatest)}. It still represents ${neglectedGroups[0].share}% of all logged sets, so it is meaningful enough to monitor.`,
+        body: `${neglectedGroups[0].group} has been quiet for ${formatDays(neglectedGroups[0].daysSinceLatest)}. It still represents ${neglectedGroups[0].share}% of all logged sets, so it may be worth checking whether that quiet stretch is intentional for the current training block.`,
         tone: neglectedGroups[0].daysSinceLatest >= 10 ? "warning" : "neutral",
       }
       : null,
@@ -256,7 +256,7 @@ export function buildTaxonomyInsights(dashboardData) {
       ? {
         id: "dominant-group",
         title: "Current emphasis",
-        body: `${emphasizedGroups[0].group} is the biggest bucket right now with ${emphasizedGroups[0].totalSets} sets and ${emphasizedGroups[0].sessionCount} appearances. That makes it a useful anchor when planning complementary work.`,
+        body: `${emphasizedGroups[0].group} is the biggest bucket right now with ${emphasizedGroups[0].totalSets} sets and ${emphasizedGroups[0].sessionCount} appearances. That gives a clear picture of what this slice of training is emphasizing, without claiming it should be otherwise.`,
         tone: "positive",
       }
       : null,
