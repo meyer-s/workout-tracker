@@ -10,6 +10,11 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import {
+  buildOverviewInsights,
+  buildTaxonomyInsights,
+  buildTrainerPreviewModel,
+} from "./dashboardViewModels";
 
 const weeklyTargets = [
   { week: 1, calories: 4999, intensity: null },
@@ -1061,6 +1066,60 @@ function MetricChip({ label, value }) {
   );
 }
 
+const insightTones = {
+  positive: { background: "#d9e4d7", border: "#bcccb8", accent: "#567053", text: "#3f5441" },
+  warning: { background: "#e8ddda", border: "#d5c5c0", accent: "#7e645e", text: "#654f49" },
+  neutral: { background: theme.surfaceStrong, border: theme.border, accent: theme.accentStrong, text: theme.textSoft },
+};
+
+function InsightStatCard({ label, value, subtitle, tone = "neutral" }) {
+  const palette = insightTones[tone] ?? insightTones.neutral;
+  return (
+    <div style={{ background: palette.background, border: `1px solid ${palette.border}`, borderRadius: 18, padding: 18, boxShadow: theme.shadow, display: "grid", gap: 8 }}>
+      <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, color: palette.accent }}>{label}</div>
+      <div style={{ fontSize: 27, fontWeight: 700, color: theme.text }}>{value}</div>
+      <div style={{ fontSize: 13, color: palette.text, lineHeight: 1.5 }}>{subtitle}</div>
+    </div>
+  );
+}
+
+function InsightCalloutCard({ title, body, tone = "neutral" }) {
+  const palette = insightTones[tone] ?? insightTones.neutral;
+  return (
+    <div style={{ border: `1px solid ${palette.border}`, borderRadius: 16, padding: 16, background: palette.background, display: "grid", gap: 8 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: palette.accent, textTransform: "uppercase", letterSpacing: 0.4 }}>{title}</div>
+      <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>{body}</div>
+    </div>
+  );
+}
+
+function DistributionBar({ label, detail, percent, color }) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+        <div>
+          <div style={{ fontWeight: 700, color: theme.text }}>{label}</div>
+          <div style={{ fontSize: 13, color: theme.textSoft }}>{detail}</div>
+        </div>
+        <div style={{ fontWeight: 700, color: theme.text }}>{percent}%</div>
+      </div>
+      <div style={{ width: "100%", height: 10, borderRadius: 999, background: theme.surfaceMuted, overflow: "hidden", border: `1px solid ${theme.border}` }}>
+        <div style={{ width: `${Math.max(6, percent)}%`, height: "100%", background: color, borderRadius: 999 }} />
+      </div>
+    </div>
+  );
+}
+
+function ConfidenceBadge({ level, score }) {
+  const tone = level === "High" ? insightTones.positive : level === "Medium" ? insightTones.neutral : insightTones.warning;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "7px 11px", border: `1px solid ${tone.border}`, background: tone.background, color: tone.accent, fontSize: 12, fontWeight: 700 }}>
+      <span>{level} confidence</span>
+      <span style={{ opacity: 0.72 }}>{score}%</span>
+    </span>
+  );
+}
+
 function TrendPill({ label, delta, suffix = "", emptyLabel = "No baseline" }) {
   const tone = getTrendTone(delta);
   if (delta === null) {
@@ -1131,8 +1190,12 @@ export default function TrainingLogDashboard() {
   }, [importedWorkouts]);
 
   const mergedWorkouts = useMemo(() => dedupeWorkouts([...workouts, ...importedWorkouts]), [importedWorkouts]);
-  const { structuredWorkouts, exerciseHistories, taxonomySummary, exerciseIndex, repeatedExercises, topGrowthLeaders, totalParsedSets, dominantGroup } = useMemo(() => buildDashboardData(mergedWorkouts), [mergedWorkouts]);
+  const dashboardData = useMemo(() => buildDashboardData(mergedWorkouts), [mergedWorkouts]);
+  const { structuredWorkouts, exerciseHistories, taxonomySummary, exerciseIndex, repeatedExercises, topGrowthLeaders, totalParsedSets, dominantGroup } = dashboardData;
   const previewStructuredWorkouts = useMemo(() => buildDashboardData(previewWorkouts).structuredWorkouts, [previewWorkouts]);
+  const overviewInsights = useMemo(() => buildOverviewInsights(dashboardData, weeklyTargets), [dashboardData]);
+  const taxonomyInsights = useMemo(() => buildTaxonomyInsights(dashboardData), [dashboardData]);
+  const trainerPreviewModel = useMemo(() => buildTrainerPreviewModel(previewStructuredWorkouts, structuredWorkouts), [previewStructuredWorkouts, structuredWorkouts]);
 
   const filteredWorkouts = useMemo(() => {
     if (!query.trim()) return structuredWorkouts;
@@ -1209,11 +1272,9 @@ export default function TrainingLogDashboard() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 24 }}>
-          <StatCard title="Tracked exercises" value={exerciseHistories.length} subtitle={`${repeatedExercises.length} repeated across sessions`} />
-          <StatCard title="Parsed sets" value={totalParsedSets} subtitle={`${structuredWorkouts.length} logged workouts`} />
-          <StatCard title="Dominant group" value={dominantGroup ? dominantGroup.group : "n/a"} subtitle={dominantGroup ? `${dominantGroup.totalSets} parsed sets` : "No grouped data yet"} />
-          <StatCard title="Total target calories" value={totalCalories.toLocaleString()} subtitle={`Avg ${avgCalories.toLocaleString()} per week`} />
-          <StatCard title="Peak calorie week" value={`Week ${maxCaloriesWeek.week}`} subtitle={`${maxCaloriesWeek.calories.toLocaleString()} calories · avg intensity ${avgIntensity}`} />
+          {overviewInsights.summaryCards.map((card) => (
+            <InsightStatCard key={card.id} label={card.label} value={card.value} subtitle={card.subtitle} tone={card.tone} />
+          ))}
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -1225,6 +1286,31 @@ export default function TrainingLogDashboard() {
 
         {activeTab === "overview" && (
           <div style={{ display: "grid", gap: 16 }}>
+            <SectionCard title="What stands out" subtitle="A faster read on what changed, what is working, and where the plan may be getting narrow">
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(280px, 0.9fr)", gap: 16 }}>
+                <div style={{ display: "grid", gap: 12 }}>
+                  {overviewInsights.callouts.map((callout) => (
+                    <InsightCalloutCard key={callout.id} title={callout.title} body={callout.body} tone={callout.tone} />
+                  ))}
+                </div>
+                <div style={{ display: "grid", gap: 12 }}>
+                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Recent focus</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {overviewInsights.latestFocus.length > 0 ? overviewInsights.latestFocus.map((label) => (
+                        <span key={label} style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13, fontWeight: 600 }}>{label}</span>
+                      )) : <span style={{ color: theme.textSoft, fontSize: 14 }}>No recent focus signal yet.</span>}
+                    </div>
+                  </div>
+                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Weekly target trend</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: theme.text }}>{overviewInsights.calorieTrend.recentCalories.toLocaleString()}</div>
+                    <div style={{ color: theme.textSoft, lineHeight: 1.5 }}>{overviewInsights.calorieTrend.latestWindowLabel ? `${overviewInsights.calorieTrend.latestWindowLabel} total calories` : "No calorie window yet"}</div>
+                    <div style={{ color: theme.textMuted, fontSize: 13 }}>{overviewInsights.calorieTrend.previousCalories > 0 ? `${overviewInsights.calorieTrend.deltaPercent > 0 ? "+" : ""}${overviewInsights.calorieTrend.deltaPercent ?? 0}% vs prior 4-week block` : `Peak week remains Week ${maxCaloriesWeek.week} at ${maxCaloriesWeek.calories.toLocaleString()} calories.`}</div>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
               <SectionCard title="Calories by week">
                 <div style={{ height: 320 }}>
@@ -1241,7 +1327,7 @@ export default function TrainingLogDashboard() {
                 </div>
               </SectionCard>
             </div>
-            <SectionCard title="Growth highlights" subtitle="Top repeated movement buckets">
+            <SectionCard title="Growth highlights" subtitle="Top repeated movement buckets with the clearest progression signal">
               <div style={{ display: "grid", gap: 12 }}>
                 {topGrowthLeaders.map((history) => (
                   <div key={history.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, background: theme.surface }}>
@@ -1265,13 +1351,13 @@ export default function TrainingLogDashboard() {
 
         {activeTab === "progress" && <SectionCard title="Exercise progress cards" subtitle="Grouped across repeated movement patterns"><div style={{ display: "grid", gap: 14 }}>{filteredHistories.map((history) => <ExerciseHistoryCard key={history.canonicalName} history={history} />)}</div></SectionCard>}
 
-        {activeTab === "groups" && <SectionCard title="Taxonomy groups" subtitle="Exercise families and rolled-up movement lists"><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "start" }}>{filteredGroups.map((group) => <div key={`${group.family}-${group.group}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, display: "grid", gap: 14, background: theme.surface, boxShadow: theme.shadow, alignContent: "start" }}>{renderGroupHeader(group)}<div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 14, color: theme.textSoft }}><span>{group.exerciseCount} movements</span><span>{group.sessionCount} appearances</span><span>{group.totalSets} sets</span></div><div style={{ display: "grid", gap: 8, alignContent: "start" }}>{group.topExercises.slice(0, 5).map((exercise) => <div key={exercise.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ marginTop: 4, fontSize: 13, color: theme.textSoft }}>{exercise.sessionCount} sessions · best load {formatLoad(exercise.bestLoad)}</div></div>)}</div></div>)}</div></SectionCard>}
+        {activeTab === "groups" && <div style={{ display: "grid", gap: 16 }}><SectionCard title="Balance snapshot" subtitle="Use this view to spot concentration, under-served areas, and where volume is clustering"><div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.1fr) minmax(280px, 0.9fr)", gap: 16 }}><div style={{ display: "grid", gap: 14 }}>{taxonomyInsights.familyDistribution.map((family) => { const tone = familyColors[family.family] ?? familyColors.Mixed; return <DistributionBar key={family.family} label={family.family} detail={`${family.totalSets} sets across ${family.groupCount} groups`} percent={family.share} color={tone.color} />; })}</div><div style={{ display: "grid", gap: 12 }}>{taxonomyInsights.balanceNotes.map((note) => <InsightCalloutCard key={note.id} title={note.title} body={note.body} tone={note.tone} />)}</div></div></SectionCard><SectionCard title="Neglected groups" subtitle="Movement buckets that have gone quiet relative to the rest of the log"><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>{taxonomyInsights.neglectedGroups.map((group) => <div key={`${group.family}-${group.group}-neglected`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, background: theme.surfaceStrong, display: "grid", gap: 8 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}><div><div style={{ fontWeight: 700, color: theme.text }}>{group.group}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.family}</div></div><div style={{ fontSize: 12, color: theme.textMuted }}>{group.share}% of sets</div></div><div style={{ fontSize: 13, color: theme.textSoft }}>{group.totalSets} sets · {group.sessionCount} appearances</div><div style={{ fontSize: 13, color: theme.textMuted }}>Last emphasized {group.latestDateLabel} · {group.daysSinceLatest} day gap</div></div>)}</div></SectionCard><SectionCard title="Taxonomy groups" subtitle="Detailed movement buckets, now with balance context instead of just rolled-up lists"><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "start" }}>{filteredGroups.map((group) => <div key={`${group.family}-${group.group}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, display: "grid", gap: 14, background: theme.surface, boxShadow: theme.shadow, alignContent: "start" }}>{renderGroupHeader(group)}<div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 14, color: theme.textSoft }}><span>{group.exerciseCount} movements</span><span>{group.sessionCount} appearances</span><span>{group.totalSets} sets</span><span>{Math.round((group.totalSets / Math.max(totalParsedSets, 1)) * 100)}% of all parsed sets</span></div><div style={{ display: "grid", gap: 8, alignContent: "start" }}>{group.topExercises.slice(0, 5).map((exercise) => <div key={exercise.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ marginTop: 4, fontSize: 13, color: theme.textSoft }}>{exercise.sessionCount} sessions · best load {formatLoad(exercise.bestLoad)}</div></div>)}</div></div>)}</div></SectionCard></div>}
 
         {activeTab === "workouts" && <SectionCard title="Structured workout log" subtitle="Now with repeated movement grouping and trend cues"><div style={{ display: "grid", gap: 16 }}>{filteredWorkouts.map((workout) => <details key={`${workout.workout}-${workout.date}`} style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, background: "#fff" }}><summary style={{ cursor: "pointer" }}><div style={{ display: "inline-block" }}><div style={{ fontWeight: 600 }}>Workout {workout.workout} · {workout.dateLabel}</div><div style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>{workout.title}</div></div></summary><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, marginTop: 16 }}>{workout.circuits.map((circuit, circuitIndex) => <div key={`${workout.workout}-${workout.date}-${circuit.name}-${circuitIndex}`} style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 12 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><h4 style={{ margin: 0, fontSize: 16 }}>{circuit.name}</h4><span style={{ fontSize: 12, color: "#6b7280" }}>{circuit.totalSets} sets</span></div><div style={{ display: "grid", gap: 12 }}>{circuit.exercises.map((exercise) => <div key={exercise.id} style={{ border: "1px solid #f3f4f6", borderRadius: 14, padding: 12, background: "#f9fafb", display: "grid", gap: 10 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><div><div style={{ fontWeight: 700 }}>{exercise.movementLabel}</div><div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>{exercise.name}</div>{exercise.trend?.previousDateLabel ? <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>vs previous on {exercise.trend.previousDateLabel}</div> : <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>First time this movement appears in your log</div>}</div><GroupBadge family={exercise.taxonomy.family} group={exercise.taxonomy.group} /></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{exercise.trend?.hasRepData ? <TrendPill label="Reps" delta={exercise.trend.repDelta} /> : exercise.trend?.hasTimeData ? <TrendPill label="Time" delta={exercise.trend.timeDelta} suffix="s" /> : <TrendPill label="Reps" delta={null} emptyLabel="No baseline" />}<TrendPill label="Load" delta={exercise.trend?.loadDelta ?? null} suffix=" lb" /></div><div style={{ display: "grid", gap: 6, color: "#4b5563", fontSize: 14 }}>{exercise.variations.map((variation) => <div key={variation.id}>{variation.summary}</div>)}</div></div>)}</div></div>)}</div></details>)}</div></SectionCard>}
 
         {activeTab === "index" && <SectionCard title="Exercise index" subtitle="Movement buckets with session counts"><div style={{ maxHeight: 620, overflow: "auto", paddingRight: 4 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>{exerciseIndex.filter((exercise) => !query.trim() || normalizeText(`${exercise.name} ${exercise.family} ${exercise.group} ${exercise.exampleExerciseName}`).includes(normalizeText(query))).map((exercise) => <div key={`${exercise.family}-${exercise.group}-${exercise.name}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 12, display: "grid", gap: 8, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{exercise.exampleExerciseName}</div><GroupBadge family={exercise.family} group={exercise.group} /><div style={{ fontSize: 13, color: theme.textMuted }}>{exercise.sessionCount} session{exercise.sessionCount === 1 ? "" : "s"}</div></div>)}</div></div></SectionCard>}
 
-        {activeTab === "intake" && <div style={{ display: "grid", gap: 16 }}><SectionCard title="Trainer note intake" subtitle="Paste notes in the same written style and merge them into the dashboard"><div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(280px, 0.9fr)", gap: 16 }}><div style={{ display: "grid", gap: 12 }}><textarea value={trainerNotes} onChange={(event) => setTrainerNotes(event.target.value)} spellCheck={false} style={{ width: "100%", minHeight: 420, resize: "vertical", padding: 14, borderRadius: 14, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, lineHeight: 1.6, boxSizing: "border-box" }} /><div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}><button type="button" onClick={previewTrainerNotes} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Preview parse</button><button type="button" onClick={importTrainerNotes} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Import into dashboard</button></div>{intakeError ? <div style={{ border: "1px solid #d5c5c0", background: "#e8ddda", color: "#7e645e", borderRadius: 12, padding: 12 }}>{intakeError}</div> : null}{intakeMessage ? <div style={{ border: "1px solid #c2cec0", background: "#d9e4d7", color: "#567053", borderRadius: 12, padding: 12 }}>{intakeMessage}</div> : null}</div><div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: theme.text }}>Accepted format</div><pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.6, color: theme.textSoft }}>{trainerNotesExample}</pre></div></div></SectionCard><SectionCard title="Parsed preview">{previewStructuredWorkouts.length === 0 ? <div style={{ color: theme.textSoft }}>No preview yet. Paste notes and click `Preview parse`.</div> : <div style={{ display: "grid", gap: 14 }}>{previewStructuredWorkouts.map((workout) => <div key={`${workout.workout}-${workout.date}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong }}><div style={{ fontWeight: 700, color: theme.text }}>Workout {workout.workout} · {workout.dateLabel}</div><div style={{ color: theme.textSoft, marginTop: 4 }}>{workout.title}</div></div>)}</div>}</SectionCard></div>}
+        {activeTab === "intake" && <div style={{ display: "grid", gap: 16 }}><SectionCard title="Trainer note intake" subtitle="Paste coach notes in a natural writing style, preview the parse, then merge them into the dashboard"><div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(280px, 0.9fr)", gap: 16 }}><div style={{ display: "grid", gap: 12 }}><textarea value={trainerNotes} onChange={(event) => setTrainerNotes(event.target.value)} spellCheck={false} style={{ width: "100%", minHeight: 420, resize: "vertical", padding: 14, borderRadius: 14, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, lineHeight: 1.6, boxSizing: "border-box" }} /><div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}><button type="button" onClick={previewTrainerNotes} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Preview parse</button><button type="button" onClick={importTrainerNotes} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Import into dashboard</button></div>{intakeError ? <div style={{ border: "1px solid #d5c5c0", background: "#e8ddda", color: "#7e645e", borderRadius: 12, padding: 12 }}>{intakeError}</div> : null}{intakeMessage ? <div style={{ border: "1px solid #c2cec0", background: "#d9e4d7", color: "#567053", borderRadius: 12, padding: 12 }}>{intakeMessage}</div> : null}</div><div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 12 }}><div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>Flexible parser cues</div><div style={{ fontSize: 13, color: theme.textSoft, lineHeight: 1.6 }}>The parser now tolerates loose headers, shorthand like `3x10`, unbulleted exercise rows, and softer section labels like `Warm Up`, `Circuit`, or `Finisher`.</div><pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.6, color: theme.textSoft }}>{trainerNotesExample}</pre></div></div></SectionCard><SectionCard title="Parsed preview" subtitle="Review confidence, structure, and flagged items before importing">{previewStructuredWorkouts.length === 0 ? <div style={{ color: theme.textSoft }}>No preview yet. Paste notes and click `Preview parse`.</div> : <div style={{ display: "grid", gap: 16 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}><InsightStatCard label="Previewed workouts" value={previewStructuredWorkouts.length} subtitle={`${trainerPreviewModel.totalWarnings} flagged review item${trainerPreviewModel.totalWarnings === 1 ? "" : "s"}`} tone={trainerPreviewModel.totalWarnings > 0 ? "warning" : "positive"} /><InsightStatCard label="Average confidence" value={`${trainerPreviewModel.averageConfidenceScore}%`} subtitle="Higher scores mean cleaner structure and fewer review flags" tone={trainerPreviewModel.averageConfidenceScore >= 80 ? "positive" : trainerPreviewModel.averageConfidenceScore >= 55 ? "neutral" : "warning"} /><InsightStatCard label="Existing workouts" value={structuredWorkouts.length} subtitle="Used to flag possible duplicate dates or workout numbers" tone="neutral" /></div>{trainerPreviewModel.cards.map((card) => <div key={card.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 14 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}><div style={{ display: "grid", gap: 4 }}><div style={{ fontWeight: 700, color: theme.text }}>Workout {card.workout.workout} · {card.workout.dateLabel}</div><div style={{ color: theme.textSoft }}>{card.workout.title}</div><div style={{ fontSize: 13, color: theme.textMuted }}>{card.summary}</div></div><ConfidenceBadge level={card.confidence} score={card.score} /></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><MetricChip label="Sections" value={card.sectionCount} /><MetricChip label="Exercises" value={card.exerciseCount} /><MetricChip label="Parsed sets" value={card.parsedSetCount} /></div><div style={{ display: "grid", gap: 8 }}><div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Likely focus</div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{card.topGroups.length > 0 ? card.topGroups.map((group) => <GroupBadge key={`${card.id}-${group.family}-${group.group}`} family={group.family} group={group.group} />) : <span style={{ color: theme.textSoft, fontSize: 13 }}>No focus groups detected yet.</span>}</div></div><div style={{ display: "grid", gap: 8 }}>{card.warnings.length > 0 ? card.warnings.map((warning) => <div key={`${card.id}-${warning}`} style={{ border: `1px solid ${insightTones.warning.border}`, borderRadius: 12, padding: 12, background: insightTones.warning.background, color: insightTones.warning.accent, fontSize: 13 }}>{warning}</div>) : <div style={{ border: `1px solid ${insightTones.positive.border}`, borderRadius: 12, padding: 12, background: insightTones.positive.background, color: insightTones.positive.accent, fontSize: 13 }}>No review flags. This preview looks ready to import.</div>}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>{card.workout.circuits.map((circuit, circuitIndex) => <div key={`${card.id}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: theme.surface }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div style={{ fontWeight: 600, color: theme.text }}>{circuit.name}</div><div style={{ fontSize: 12, color: theme.textMuted }}>{circuit.exercises.length} items</div></div><div style={{ marginTop: 8, display: "grid", gap: 6 }}>{circuit.exercises.slice(0, 3).map((exercise) => <div key={exercise.id} style={{ fontSize: 13, color: theme.textSoft }}>{exercise.movementLabel}</div>)}{circuit.exercises.length > 3 ? <div style={{ fontSize: 12, color: theme.textMuted }}>+{circuit.exercises.length - 3} more</div> : null}</div></div>)}</div></div>)}</div>}</SectionCard></div>}
 
         {activeTab === "weeks" && <SectionCard title="Weekly calorie and intensity targets"><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>{weeklyTargets.map((week) => <div key={week.week} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}><h3 style={{ margin: 0, fontSize: 16, color: theme.text }}>Week {week.week}</h3><span style={{ display: "inline-block", padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: week.intensity !== null ? theme.surfaceMuted : theme.surface, border: `1px solid ${theme.border}`, color: theme.textSoft }}>{week.intensity !== null ? `Intensity ${week.intensity}` : "No intensity logged"}</span></div><p style={{ margin: "12px 0 0", fontSize: 32, fontWeight: 700, color: theme.text }}>{week.calories.toLocaleString()}</p><p style={{ margin: "4px 0 0", fontSize: 14, color: theme.textSoft }}>target calories</p></div>)}</div></SectionCard>}
       </div>
