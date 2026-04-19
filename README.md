@@ -27,6 +27,13 @@ Open the local URL Vite prints, typically `http://127.0.0.1:5173/`.
 npm run build
 ```
 
+## GitHub Pages
+
+This repository is configured to deploy to GitHub Pages from `main` using GitHub Actions.
+
+- Expected URL: `https://meyer-s.github.io/workout-tracker/`
+- Local development still runs at the normal Vite root path.
+
 ## Key Files
 
 - `src/workouttracker.jsx` — main dashboard UI, parsing helpers, and analytics logic
