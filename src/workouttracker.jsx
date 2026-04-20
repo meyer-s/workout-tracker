@@ -1391,13 +1391,6 @@ export default function TrainingLogDashboard() {
       tone: theme.surfaceStrong,
     },
     {
-      id: "input",
-      label: "Upload",
-      subtitle: "Bring new trainer notes into the dashboard.",
-      tabs: [["intake", "Trainer intake"]],
-      tone: theme.accentSoft,
-    },
-    {
       id: "reference",
       label: "Reference",
       subtitle: "Lower-priority lookup tools and support views.",
@@ -1482,6 +1475,21 @@ export default function TrainingLogDashboard() {
                 <span>•</span>
                 <span>{activeWeeklyTargets.length} weekly target rows</span>
               </div>
+
+              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Trainer-specific actions</div>
+                  <div style={{ fontSize: 13, color: theme.textSoft }}>Upload and parse trainer notes before merging them into this client’s log.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("intake")}
+                  style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap" }}
+                >
+                  Upload trainer notes
+                </button>
+              </div>
+
               {clientMessage ? <div style={{ border: `1px solid ${insightTones.positive.border}`, background: insightTones.positive.background, color: insightTones.positive.accent, borderRadius: 12, padding: 12 }}>{clientMessage}</div> : null}
             </div>
           </SectionCard>
@@ -1494,7 +1502,7 @@ export default function TrainingLogDashboard() {
         </div>
 
         <div style={{ display: "grid", gap: 14, marginBottom: 28 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Workspace navigation</div>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Client-accessible navigation</div>
           <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 220 : 250}px, 1fr))`, gap: 14 }}>
             {tabGroups.map((group) => {
               const isGroupActive = group.tabs.some(([value]) => value === activeTab);
