@@ -1,7 +1,44 @@
 const DEFAULT_CLIENT_ID = "client-steven";
+const DEFAULT_CALORIE_THRESHOLD_PERCENT = 40;
+const DEFAULT_ZONE_THRESHOLD_PERCENT = 90;
 
 function createId() {
   return `client-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeWeeklyTarget(target = {}, index = 0) {
+  const rawZoneMinutes = target?.zoneMinutes ?? target?.intensity ?? null;
+  const zoneMinutes = rawZoneMinutes === null || rawZoneMinutes === undefined || rawZoneMinutes === "" ? null : Number(rawZoneMinutes);
+  const rawCalorieThresholdPercent = target?.calorieThresholdPercent ?? null;
+  const calorieThresholdPercent = rawCalorieThresholdPercent === null || rawCalorieThresholdPercent === undefined || rawCalorieThresholdPercent === ""
+    ? DEFAULT_CALORIE_THRESHOLD_PERCENT
+    : Number(rawCalorieThresholdPercent);
+  const rawZonePercent = target?.zonePercent ?? null;
+  const zonePercent = rawZonePercent === null || rawZonePercent === undefined || rawZonePercent === ""
+    ? zoneMinutes === null ? null : DEFAULT_ZONE_THRESHOLD_PERCENT
+    : Number(rawZonePercent);
+  const calories = Number(target?.calories ?? target?.calorieGoal ?? 0) || 0;
+  const reportedCalories = target?.reportedCalories === null || target?.reportedCalories === undefined || target?.reportedCalories === ""
+    ? calories
+    : Number(target.reportedCalories);
+  const reportedZoneMinutes = target?.reportedZoneMinutes === null || target?.reportedZoneMinutes === undefined || target?.reportedZoneMinutes === ""
+    ? null
+    : Number(target.reportedZoneMinutes);
+
+  return {
+    week: Number(target?.week ?? index + 1),
+    calories,
+    reportedCalories,
+    calorieThresholdPercent,
+    zoneMinutes,
+    zonePercent,
+    reportedZoneMinutes,
+  };
+}
+
+function normalizeWeeklyTargets(targets = []) {
+  if (!Array.isArray(targets)) return [];
+  return targets.map((target, index) => normalizeWeeklyTarget(target, index));
 }
 
 function normalizeWorkoutEditRecords(records = []) {
@@ -21,7 +58,7 @@ export function createSeedClient({ seedWorkouts = [], seedWeeklyTargets = [], tr
     notes: "Seed client with the restored workout archive.",
     usesSeedData: true,
     workouts: seedWorkouts,
-    weeklyTargets: seedWeeklyTargets,
+    weeklyTargets: normalizeWeeklyTargets(seedWeeklyTargets),
     importedWorkouts: [],
     editedWorkoutRecords: [],
     trainerNotes: trainerNotesExample,
@@ -49,7 +86,7 @@ export function normalizeClientRecord(client, fallback) {
     notes: String(client?.notes || "").trim(),
     usesSeedData: Boolean(client?.usesSeedData ?? fallback?.usesSeedData),
     workouts: Array.isArray(client?.workouts) ? client.workouts : Array.isArray(fallback?.workouts) ? fallback.workouts : [],
-    weeklyTargets: Array.isArray(client?.weeklyTargets) ? client.weeklyTargets : Array.isArray(fallback?.weeklyTargets) ? fallback.weeklyTargets : [],
+    weeklyTargets: normalizeWeeklyTargets(Array.isArray(client?.weeklyTargets) ? client.weeklyTargets : Array.isArray(fallback?.weeklyTargets) ? fallback.weeklyTargets : []),
     importedWorkouts: Array.isArray(client?.importedWorkouts) ? client.importedWorkouts : [],
     editedWorkoutRecords: normalizeWorkoutEditRecords(client?.editedWorkoutRecords),
     trainerNotes: String(client?.trainerNotes ?? fallback?.trainerNotes ?? ""),
