@@ -1541,14 +1541,23 @@ export default function TrainingLogDashboard() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: isMobile ? "12px 14px" : "12px 16px", flexWrap: "wrap" }}>
             <div style={{ display: "grid", gap: 6, minWidth: isMobile ? "100%" : 300 }}>
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Active client</div>
-              <select
-                value={isClientAddMode ? ADD_NEW_CLIENT_OPTION : activeClientId}
-                onChange={(event) => handleClientSelectionChange(event.target.value)}
-                style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }}
-              >
-                {clients.map((client) => <option key={`header-client-${client.id}`} value={client.id}>{client.name}</option>)}
-                <option value={ADD_NEW_CLIENT_OPTION}>+ Add new...</option>
-              </select>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <select
+                  value={isClientAddMode ? ADD_NEW_CLIENT_OPTION : activeClientId}
+                  onChange={(event) => handleClientSelectionChange(event.target.value)}
+                  style={{ flex: "1 1 220px", minWidth: 0, padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }}
+                >
+                  {clients.map((client) => <option key={`header-client-${client.id}`} value={client.id}>{client.name}</option>)}
+                  <option value={ADD_NEW_CLIENT_OPTION}>+ Add new...</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab("intake"); setIsMobileNavOpen(false); }}
+                  style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap" }}
+                >
+                  Upload
+                </button>
+              </div>
               {isClientAddMode ? (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <input value={newClientName} onChange={(event) => setNewClientName(event.target.value)} placeholder="New client name" style={{ flex: "1 1 190px", padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
@@ -1605,20 +1614,6 @@ export default function TrainingLogDashboard() {
         <div style={{ marginBottom: isMobile ? 26 : 36 }}>
           <SectionCard title="Client workspace" subtitle="Switch between client records here. Database-backed storage is the next step after this local multi-client layer.">
             <div style={{ display: "grid", gap: 16 }}>
-              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Trainer-specific actions</div>
-                    <div style={{ fontSize: 13, color: theme.textSoft }}>Upload and parse trainer notes before merging them into this client’s log.</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab("intake"); setIsMobileNavOpen(false); }}
-                    style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap" }}
-                  >
-                    Upload trainer notes
-                  </button>
-              </div>
-
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", color: theme.textSoft, fontSize: 13 }}>
                 <span>{clients.length} client{clients.length === 1 ? "" : "s"} loaded</span>
                 <span>•</span>
