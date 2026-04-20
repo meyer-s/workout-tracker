@@ -1244,14 +1244,6 @@ export default function TrainingLogDashboard() {
   const currentWeekZoneRatio = latestWeeklyTarget && latestWeeklyTarget.zoneMinutes !== null ? getProgressRatio(latestWeeklyTarget.reportedZoneMinutes ?? 0, latestWeeklyTarget.zoneMinutes) : 0;
   const calorieCompletionTone = latestWeeklyTarget ? getCompletionTone(latestWeeklyTarget.reportedCalories ?? 0, latestWeeklyTarget.calories) : getCompletionTone(0, null);
   const zoneCompletionTone = latestWeeklyTarget ? getCompletionTone(latestWeeklyTarget.reportedZoneMinutes ?? 0, latestWeeklyTarget.zoneMinutes) : getCompletionTone(0, null);
-  const recentSessionCadence = structuredWorkouts
-    .slice(-8)
-    .reverse()
-    .map((workout) => ({
-      ...workout,
-      intent: classifyWorkoutIntent(workout),
-      focusGroups: getTopWorkoutGroups(workout.exercises),
-    }));
 
   const updateActiveClient = (updater) => {
     if (!activeClient) return;
@@ -1265,6 +1257,14 @@ export default function TrainingLogDashboard() {
   }, [activeSeedWorkouts, editedWorkoutRecords, importedWorkouts]);
   const dashboardData = useMemo(() => buildAnalyticsData(mergedWorkouts), [mergedWorkouts]);
   const { structuredWorkouts, exerciseHistories, taxonomySummary, exerciseIndex, repeatedExercises, topGrowthLeaders, totalParsedSets, dominantGroup } = dashboardData;
+  const recentSessionCadence = structuredWorkouts
+    .slice(-8)
+    .reverse()
+    .map((workout) => ({
+      ...workout,
+      intent: classifyWorkoutIntent(workout),
+      focusGroups: getTopWorkoutGroups(workout.exercises),
+    }));
   const previewStructuredWorkouts = useMemo(() => buildAnalyticsData(previewWorkouts).structuredWorkouts, [previewWorkouts]);
   const overviewInsights = useMemo(() => buildOverviewInsights(dashboardData, activeWeeklyTargets), [dashboardData, activeWeeklyTargets]);
   const cycleInsights = useMemo(() => buildCycleInsights(dashboardData, activeWeeklyTargets), [dashboardData, activeWeeklyTargets]);
