@@ -1,23 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import muscleMaleSvgUrl from "../assets/muscle-male.svg";
+import muscleMaleSvgRaw from "../assets/muscle-male.svg?raw";
 
 const VIEWBOX_WIDTH = 383.37;
 const VIEWBOX_HEIGHT = 355.79;
 
-const hotspotConfig = [
-  { id: "upper-center", family: "Upper Body", cx: 191.7, cy: 112, r: 46, label: "Upper body" },
-  { id: "upper-left", family: "Upper Body", cx: 152, cy: 122, r: 36, label: "Upper body" },
-  { id: "upper-right", family: "Upper Body", cx: 231, cy: 122, r: 36, label: "Upper body" },
-  { id: "arms-left", family: "Arms", cx: 109, cy: 142, r: 30, label: "Arms" },
-  { id: "arms-right", family: "Arms", cx: 274, cy: 142, r: 30, label: "Arms" },
-  { id: "core", family: "Core", cx: 191.7, cy: 178, r: 36, label: "Core" },
-  { id: "athletic", family: "Athletic", cx: 191.7, cy: 226, r: 42, label: "Athletic" },
-  { id: "lower-left", family: "Lower Body", cx: 162, cy: 272, r: 46, label: "Lower body" },
-  { id: "lower-right", family: "Lower Body", cx: 222, cy: 272, r: 46, label: "Lower body" },
-  { id: "mixed", family: "Mixed", cx: 191.7, cy: 188, r: 92, label: "Mixed" },
-];
-
 const prioritizedFamilies = ["Upper Body", "Lower Body", "Core", "Arms", "Athletic", "Mixed"];
+
+const bodyFamilies = ["Upper Body", "Lower Body", "Core", "Arms"];
 
 function withAlpha(hexColor, alpha) {
   if (!hexColor || typeof hexColor !== "string") return `rgba(126, 143, 123, ${alpha})`;
@@ -31,6 +20,142 @@ function withAlpha(hexColor, alpha) {
 
 function getWorkoutKey(workout) {
   return `${workout.workout}-${workout.date}`;
+}
+
+function parseSvgPaths(svgRaw) {
+  if (!svgRaw || typeof svgRaw !== "string") {
+    return {
+      viewBox: `0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`,
+      paths: [],
+    };
+  }
+
+  if (typeof DOMParser !== "undefined") {
+    const parsed = new DOMParser().parseFromString(svgRaw, "image/svg+xml");
+    const svgNode = parsed.querySelector("svg");
+    const viewBox = svgNode?.getAttribute("viewBox") || `0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`;
+    const paths = Array.from(parsed.querySelectorAll("path")).map((pathNode, index) => ({
+      index,
+      d: pathNode.getAttribute("d") ?? "",
+    }));
+    return {
+      viewBox,
+      paths,
+    };
+  }
+
+  const pathMatches = [...svgRaw.matchAll(/<path\s+[^>]*d="([^"]+)"[^>]*>/g)];
+  return {
+    viewBox: `0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`,
+    paths: pathMatches.map((match, index) => ({ index, d: match[1] ?? "" })),
+  };
+}
+
+function estimatePathBounds(pathData) {
+  const values = (pathData.match(/-?\d*\.?\d+/g) ?? []).map((value) => Number(value)).filter((value) => Number.isFinite(value));
+  if (values.length < 2) {
+    return {
+      minX: 0,
+      maxX: VIEWBOX_WIDTH,
+      minY: 0,
+      maxY: VIEWBOX_HEIGHT,
+      centerX: VIEWBOX_WIDTH / 2,
+      centerY: VIEWBOX_HEIGHT / 2,
+    };
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (let index = 0; index < values.length - 1; index += 2) {
+    const x = values[index];
+    const y = values[index + 1];
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
+    return {
+      minX: 0,
+      maxX: VIEWBOX_WIDTH,
+      minY: 0,
+      maxY: VIEWBOX_HEIGHT,
+      centerX: VIEWBOX_WIDTH / 2,
+      centerY: VIEWBOX_HEIGHT / 2,
+    };
+  }
+
+  return {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+  };
+}
+
+function resolveFamilyForPath(bounds) {
+  if (bounds.centerY >= 240) return "Lower Body";
+  if (bounds.centerY >= 170) {
+    if (bounds.centerX >= 140 && bounds.centerX <= 245) return "Core";
+    return "Arms";
+  }
+  if (bounds.centerY >= 95) {
+    if (bounds.centerX <= 120 || bounds.centerX >= 265) return "Arms";
+    return "Upper Body";
+  }
+  return "Upper Body";
+}
+
+function buildFamilyPathMap(paths) {
+  const map = {
+    "Upper Body": [],
+    "Lower Body": [],
+    Core: [],
+    Arms: [],
+  };
+
+  paths.forEach((path) => {
+    const family = resolveFamilyForPath(estimatePathBounds(path.d));
+    map[family].push(path.index);
+  });
+
+  return map;
+}
+
+function modifySelectedSvgPaths(paths, selectedPathIndexes, buildStyle) {
+  if (!Array.isArray(paths) || paths.length === 0) return [];
+  const selectedIndexSet = new Set(selectedPathIndexes);
+  return paths.map((path) => {
+    if (!selectedIndexSet.has(path.index)) return path;
+    return {
+      ...path,
+      ...buildStyle(path),
+    };
+  });
+}
+
+function getEffectiveFamilyTotals(familyTotals) {
+  const upperBody = familyTotals["Upper Body"] ?? 0;
+  const lowerBody = familyTotals["Lower Body"] ?? 0;
+  const core = familyTotals.Core ?? 0;
+  const arms = familyTotals.Arms ?? 0;
+  const athletic = familyTotals.Athletic ?? 0;
+  const mixed = familyTotals.Mixed ?? 0;
+
+  return {
+    "Upper Body": upperBody + athletic * 0.35 + mixed * 0.25,
+    "Lower Body": lowerBody + athletic * 0.35 + mixed * 0.25,
+    Core: core + athletic * 0.3 + mixed * 0.25,
+    Arms: arms + mixed * 0.25,
+    Athletic: athletic,
+    Mixed: mixed,
+  };
 }
 
 function buildFamilySetTotals(workouts) {
@@ -54,6 +179,8 @@ function buildFamilySetTotals(workouts) {
 }
 
 export function MuscleHeatmapCard({ workouts, theme, familyColors, isMobile = false }) {
+  const parsedSvg = useMemo(() => parseSvgPaths(muscleMaleSvgRaw), []);
+
   const options = useMemo(() => {
     return workouts.map((workout) => ({
       key: getWorkoutKey(workout),
@@ -75,10 +202,35 @@ export function MuscleHeatmapCard({ workouts, theme, familyColors, isMobile = fa
   }, [selectedWorkoutKey, workouts]);
 
   const familyTotals = useMemo(() => buildFamilySetTotals(selectedWorkouts), [selectedWorkouts]);
+  const effectiveFamilyTotals = useMemo(() => getEffectiveFamilyTotals(familyTotals), [familyTotals]);
+  const familyPathMap = useMemo(() => buildFamilyPathMap(parsedSvg.paths), [parsedSvg.paths]);
+
   const peakSets = useMemo(() => {
-    const values = Object.values(familyTotals);
+    const values = bodyFamilies.map((family) => effectiveFamilyTotals[family] ?? 0);
     return values.length > 0 ? Math.max(...values, 0) : 0;
-  }, [familyTotals]);
+  }, [effectiveFamilyTotals]);
+
+  const recoloredPaths = useMemo(() => {
+    const basePaths = parsedSvg.paths.map((path) => ({
+      ...path,
+      fill: withAlpha("#232b24", 0.95),
+      stroke: withAlpha("#5f6e61", 0.35),
+      strokeWidth: 0.8,
+    }));
+
+    return bodyFamilies.reduce((updatedPaths, family) => {
+      const selectedIndexes = familyPathMap[family] ?? [];
+      const sets = effectiveFamilyTotals[family] ?? 0;
+      const intensity = peakSets > 0 ? sets / peakSets : 0;
+      if (selectedIndexes.length === 0 || intensity <= 0) return updatedPaths;
+      const baseColor = familyColors[family]?.color ?? theme.accentStrong;
+      return modifySelectedSvgPaths(updatedPaths, selectedIndexes, () => ({
+        fill: withAlpha(baseColor, Math.max(0.3, 0.2 + intensity * 0.78)),
+        stroke: withAlpha(baseColor, Math.min(0.95, 0.35 + intensity * 0.6)),
+        strokeWidth: 1.1,
+      }));
+    }, basePaths);
+  }, [effectiveFamilyTotals, familyColors, familyPathMap, parsedSvg.paths, peakSets, theme.accentStrong]);
 
   const familyBreakdown = useMemo(() => {
     const presentFamilies = Object.keys(familyTotals);
@@ -104,7 +256,7 @@ export function MuscleHeatmapCard({ workouts, theme, familyColors, isMobile = fa
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-        <div style={{ color: theme.textSoft, fontSize: 13 }}>Highlight distribution by set count for each movement family (secondary groups contribute 0.5x).</div>
+        <div style={{ color: theme.textSoft, fontSize: 13 }}>Direct SVG path heatmap by movement family (secondary groups contribute 0.5x).</div>
         <label style={{ display: "grid", gap: 4, fontSize: 12, color: theme.textMuted }}>
           Heatmap scope
           <select value={selectedWorkoutKey} onChange={(event) => setSelectedWorkoutKey(event.target.value)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text, borderRadius: 10, padding: "8px 10px", minWidth: isMobile ? 180 : 230 }}>
@@ -115,15 +267,10 @@ export function MuscleHeatmapCard({ workouts, theme, familyColors, isMobile = fa
       </div>
 
       <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, background: theme.surfaceStrong, padding: isMobile ? 10 : 14 }}>
-        <svg viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} width="100%" role="img" aria-label={`Muscle heatmap for ${selectedLabel}`}>
-          <image href={muscleMaleSvgUrl} x="0" y="0" width={VIEWBOX_WIDTH} height={VIEWBOX_HEIGHT} preserveAspectRatio="xMidYMid meet" />
-          {hotspotConfig.map((hotspot) => {
-            const sets = familyTotals[hotspot.family] ?? 0;
-            const intensity = peakSets > 0 ? sets / peakSets : 0;
-            const baseColor = familyColors[hotspot.family]?.color ?? theme.accentStrong;
-            const fill = withAlpha(baseColor, Math.max(0.05, intensity * 0.68));
-            return <circle key={hotspot.id} cx={hotspot.cx} cy={hotspot.cy} r={hotspot.r} fill={fill} stroke={withAlpha(baseColor, Math.min(0.9, 0.25 + intensity * 0.65))} strokeWidth={1.5} />;
-          })}
+        <svg viewBox={parsedSvg.viewBox} width="100%" role="img" aria-label={`Muscle heatmap for ${selectedLabel}`}>
+          {recoloredPaths.map((path) => (
+            <path key={`muscle-path-${path.index}`} d={path.d} fill={path.fill} stroke={path.stroke} strokeWidth={path.strokeWidth} />
+          ))}
         </svg>
       </div>
 
