@@ -316,14 +316,16 @@ export function buildCycleInsights(dashboardData, weeklyTargets) {
     const previousBlock = index > 0 ? blocks[index - 1] : null;
     const totalCalories = sum(weeks, (week) => week.calories);
     const previousCalories = previousBlock ? sum(previousBlock, (week) => week.calories) : 0;
-    const intensityWeeks = weeks.filter((week) => week.intensity !== null);
+    const zoneWeeks = weeks.filter((week) => week.zoneMinutes !== null);
+    const latestZoneWeek = [...zoneWeeks].reverse().find((week) => week.zonePercent !== null) ?? null;
     return {
       id: `mesocycle-${index + 1}`,
       label: `Block ${index + 1}`,
       weekRange: formatWeekRange(weeks),
       totalCalories,
       avgCalories: average(weeks, (week) => week.calories),
-      avgIntensity: intensityWeeks.length > 0 ? average(intensityWeeks, (week) => week.intensity ?? 0) : null,
+      avgZoneMinutes: zoneWeeks.length > 0 ? average(zoneWeeks, (week) => week.zoneMinutes ?? 0) : null,
+      latestZonePercent: latestZoneWeek?.zonePercent ?? null,
       deltaPercent: previousBlock ? percentageChange(totalCalories, previousCalories) : null,
       peakWeek: weeks.reduce((peak, week) => week.calories > peak.calories ? week : peak, weeks[0]),
     };
