@@ -31,9 +31,10 @@ import {
   insightTones,
 } from "./dashboardComponents.jsx";
 import { buildDashboardData as buildAnalyticsData } from "./workoutAnalytics";
-import { dedupeWorkouts as dedupeWorkoutList, parseTrainerWorkoutNotes as parseTrainerNotes } from "./workoutParser";
+import { dedupeWorkouts as dedupeWorkoutList, parseTrainerWorkoutNotes as parseTrainerNotes, taxonomyRules as parserTaxonomyRules } from "./workoutParser";
 import { createEmptyCircuitDraft, createWorkoutDraft, getWorkoutKey, parseWorkoutDraft } from "./workoutEditor";
 import { createBlankClient, createSeedClient, normalizeClientStore, updateClientRecord } from "./clientStore";
+import { MuscleHeatmapCard } from "./components/MuscleHeatmapCard";
 
 const DEFAULT_CALORIE_THRESHOLD_PERCENT = 40;
 const DEFAULT_ZONE_THRESHOLD_PERCENT = 90;
@@ -1113,6 +1114,20 @@ function parseNonNegativeNumberInput(value, fallback = 0) {
   return Math.max(0, parsed);
 }
 
+function toImpactGroupKey(family, group) {
+  return `${family}::${group}`;
+}
+
+function parseImpactGroupKey(groupKey) {
+  const [family, ...groupParts] = String(groupKey ?? "").split("::");
+  const group = groupParts.join("::").trim();
+  if (!family || !group) return null;
+  return {
+    family: family.trim(),
+    group,
+  };
+}
+
 export default function TrainingLogDashboard() {
   const seedClient = useMemo(() => createSeedClient({ seedWorkouts: workouts, seedWeeklyTargets: weeklyTargets, trainerNotesExample }), []);
   const [query, setQuery] = useState("");
@@ -1196,6 +1211,7 @@ export default function TrainingLogDashboard() {
   const activeClient = useMemo(() => clients.find((client) => client.id === activeClientId) ?? clients[0] ?? seedClient, [clients, activeClientId, seedClient]);
   const importedWorkouts = activeClient?.importedWorkouts ?? [];
   const editedWorkoutRecords = activeClient?.editedWorkoutRecords ?? [];
+  const exerciseImpactOverrides = activeClient?.exerciseImpactOverrides ?? {};
   const activeSeedWorkouts = activeClient?.usesSeedData ? workouts : activeClient?.workouts ?? [];
   const activeWeeklyTargets = useMemo(() => {
     const sourceTargets = activeClient?.weeklyTargets?.length ? activeClient.weeklyTargets : activeClient?.usesSeedData ? weeklyTargets : [];
@@ -1249,7 +1265,7 @@ export default function TrainingLogDashboard() {
     const baseWorkouts = dedupeWorkoutList([...activeSeedWorkouts, ...importedWorkouts]).filter((workout) => !overriddenKeys.has(getWorkoutKey(workout)));
     return dedupeWorkoutList([...baseWorkouts, ...editedWorkoutRecords.map((entry) => entry.workout)]);
   }, [activeSeedWorkouts, editedWorkoutRecords, importedWorkouts]);
-  const dashboardData = useMemo(() => buildAnalyticsData(mergedWorkouts), [mergedWorkouts]);
+  const dashboardData = useMemo(() => buildAnalyticsData(mergedWorkouts, { exerciseImpactOverrides }), [mergedWorkouts, exerciseImpactOverrides]);
   const { structuredWorkouts, exerciseHistories, taxonomySummary, exerciseIndex, repeatedExercises, topGrowthLeaders, totalParsedSets, dominantGroup } = dashboardData;
   const previewStructuredWorkouts = useMemo(() => buildAnalyticsData(previewWorkouts).structuredWorkouts, [previewWorkouts]);
   const overviewInsights = useMemo(() => buildOverviewInsights(dashboardData, activeWeeklyTargets), [dashboardData, activeWeeklyTargets]);
@@ -1275,6 +1291,68 @@ export default function TrainingLogDashboard() {
     const normalizedQuery = normalizeText(query);
     return taxonomySummary.filter((group) => normalizeText(`${group.family} ${group.group}`).includes(normalizedQuery) || group.topExercises.some((exercise) => exercise.searchText.includes(normalizedQuery)));
   }, [query, taxonomySummary]);
+
+  const impactGroupOptions = useMemo(() => {
+    const orderedRules = [...parserTaxonomyRules].sort((left, right) => left.family.localeCompare(right.family) || left.group.localeCompare(right.group));
+    return [
+      ...orderedRules.map((rule) => ({
+        key: toImpactGroupKey(rule.family, rule.group),
+        family: rule.family,
+        group: rule.group,
+        label: `${rule.family} · ${rule.group}`,
+      })),
+      {
+        key: toImpactGroupKey("Mixed", "Accessory / Skill"),
+        family: "Mixed",
+        group: "Accessory / Skill",
+        label: "Mixed · Accessory / Skill",
+      },
+    ];
+  }, []);
+
+  const impactGroupLookup = useMemo(() => {
+    const lookup = new Map();
+    impactGroupOptions.forEach((option) => {
+      lookup.set(option.key, option);
+    });
+    return lookup;
+  }, [impactGroupOptions]);
+
+  const updateExerciseImpactOverride = (exercise, nextPrimaryKeys, nextSecondaryKeys) => {
+    const defaultPrimaryKey = toImpactGroupKey(exercise.family, exercise.group);
+    const normalizedPrimary = [...new Set((nextPrimaryKeys ?? []).map((groupKey) => String(groupKey).trim()).filter(Boolean))];
+    const normalizedSecondary = [...new Set((nextSecondaryKeys ?? []).map((groupKey) => String(groupKey).trim()).filter(Boolean))]
+      .filter((groupKey) => !normalizedPrimary.includes(groupKey));
+
+    updateActiveClient((client) => {
+      const currentOverrides = client.exerciseImpactOverrides ?? {};
+      const nextOverrides = { ...currentOverrides };
+      const isDefaultPrimary = normalizedPrimary.length === 1 && normalizedPrimary[0] === defaultPrimaryKey;
+      if ((normalizedPrimary.length === 0 || isDefaultPrimary) && normalizedSecondary.length === 0) {
+        delete nextOverrides[exercise.canonicalName];
+      } else {
+        nextOverrides[exercise.canonicalName] = {
+          primary: normalizedPrimary.length > 0 ? normalizedPrimary : [defaultPrimaryKey],
+          secondary: normalizedSecondary,
+        };
+      }
+      return {
+        ...client,
+        exerciseImpactOverrides: nextOverrides,
+      };
+    });
+  };
+
+  const getExerciseImpactSelection = (exercise) => {
+    const override = exerciseImpactOverrides?.[exercise.canonicalName];
+    const defaultPrimaryKey = toImpactGroupKey(exercise.family, exercise.group);
+    const primaryKeys = Array.isArray(override?.primary) && override.primary.length > 0 ? override.primary : [defaultPrimaryKey];
+    const secondaryKeys = (Array.isArray(override?.secondary) ? override.secondary : []).filter((groupKey) => !primaryKeys.includes(groupKey));
+    return {
+      primaryKeys,
+      secondaryKeys,
+    };
+  };
 
   const previewTrainerNotes = () => {
     const result = parseTrainerNotes(trainerNotes, mergedWorkouts);
@@ -1890,115 +1968,196 @@ export default function TrainingLogDashboard() {
         )}
 
         {activeTab === "workouts" && (
-          <SectionCard title="Structured workout log" subtitle="Review, edit, and refine workouts directly from the log without overwriting the original seed data.">
-            <div style={{ display: "grid", gap: 18 }}>
-              {workoutEditError ? <div style={{ border: `1px solid ${insightTones.warning.border}`, background: insightTones.warning.background, color: insightTones.warning.accent, borderRadius: 12, padding: 12 }}>{workoutEditError}</div> : null}
-              {workoutEditMessage ? <div style={{ border: `1px solid ${insightTones.positive.border}`, background: insightTones.positive.background, color: insightTones.positive.accent, borderRadius: 12, padding: 12 }}>{workoutEditMessage}</div> : null}
-              {filteredWorkouts.map((workout) => {
-                const workoutKey = getWorkoutKey(workout);
-                const isEditing = editingWorkoutKey === workoutKey;
-                const editRecord = editRecordLookup.get(workoutKey);
-                return (
-                  <details key={workoutKey} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surface }}>
-                    <summary style={{ cursor: "pointer" }}>
-                      <div style={{ display: "inline-block" }}>
-                        <div style={{ fontWeight: 600, color: theme.text }}>Workout {workout.workout} · {workout.dateLabel}</div>
-                        <div style={{ fontSize: 14, color: theme.textSoft, marginTop: 4 }}>{workout.title}</div>
-                      </div>
-                    </summary>
-                    <div style={{ display: "grid", gap: 18, marginTop: 18 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <MetricChip label="Circuits" value={workout.circuits.length} />
-                          <MetricChip label="Exercises" value={workout.exercises.length} />
-                          <MetricChip label="Parsed sets" value={workout.totalSets} />
+          <div style={{ display: "grid", gap: 18 }}>
+            <SectionCard title="Muscle heatmap" subtitle="See where set volume is concentrated across the body, with an option to inspect each workout individually.">
+              <MuscleHeatmapCard workouts={filteredWorkouts} theme={theme} familyColors={familyColors} isMobile={isMobile} />
+            </SectionCard>
+            <SectionCard title="Structured workout log" subtitle="Review, edit, and refine workouts directly from the log without overwriting the original seed data.">
+              <div style={{ display: "grid", gap: 18 }}>
+                {workoutEditError ? <div style={{ border: `1px solid ${insightTones.warning.border}`, background: insightTones.warning.background, color: insightTones.warning.accent, borderRadius: 12, padding: 12 }}>{workoutEditError}</div> : null}
+                {workoutEditMessage ? <div style={{ border: `1px solid ${insightTones.positive.border}`, background: insightTones.positive.background, color: insightTones.positive.accent, borderRadius: 12, padding: 12 }}>{workoutEditMessage}</div> : null}
+                {filteredWorkouts.map((workout) => {
+                  const workoutKey = getWorkoutKey(workout);
+                  const isEditing = editingWorkoutKey === workoutKey;
+                  const editRecord = editRecordLookup.get(workoutKey);
+                  return (
+                    <details key={workoutKey} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surface }}>
+                      <summary style={{ cursor: "pointer" }}>
+                        <div style={{ display: "inline-block" }}>
+                          <div style={{ fontWeight: 600, color: theme.text }}>Workout {workout.workout} · {workout.dateLabel}</div>
+                          <div style={{ fontSize: 14, color: theme.textSoft, marginTop: 4 }}>{workout.title}</div>
                         </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {editRecord ? <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", border: `1px solid ${theme.border}`, background: theme.accentSoft, color: theme.accentStrong, fontSize: 12, fontWeight: 700 }}>Edited</span> : null}
-                          <button type="button" onClick={() => beginWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>{isEditing ? "Editing" : "Edit workout"}</button>
-                          {editRecord ? <button type="button" onClick={() => revertWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Restore original</button> : null}
+                      </summary>
+                      <div style={{ display: "grid", gap: 18, marginTop: 18 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <MetricChip label="Circuits" value={workout.circuits.length} />
+                            <MetricChip label="Exercises" value={workout.exercises.length} />
+                            <MetricChip label="Parsed sets" value={workout.totalSets} />
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {editRecord ? <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", border: `1px solid ${theme.border}`, background: theme.accentSoft, color: theme.accentStrong, fontSize: 12, fontWeight: 700 }}>Edited</span> : null}
+                            <button type="button" onClick={() => beginWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>{isEditing ? "Editing" : "Edit workout"}</button>
+                            {editRecord ? <button type="button" onClick={() => revertWorkoutEdit(workout)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Restore original</button> : null}
+                          </div>
                         </div>
-                      </div>
 
-                      {isEditing && editingDraft ? (
-                        <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 14 }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-                            <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
-                              Workout #
-                              <input value={editingDraft.workout} onChange={(event) => updateWorkoutDraft("workout", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
-                            </label>
-                            <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
-                              Date
-                              <input value={editingDraft.date} onChange={(event) => updateWorkoutDraft("date", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
-                            </label>
-                            <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft, gridColumn: "span 2" }}>
-                              Title
-                              <input value={editingDraft.title} onChange={(event) => updateWorkoutDraft("title", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
-                            </label>
-                          </div>
-                          <div style={{ display: "grid", gap: 12 }}>
-                            {editingDraft.circuits.map((circuit, circuitIndex) => (
-                              <div key={`${workoutKey}-draft-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "grid", gap: 10 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                                  <label style={{ display: "grid", gap: 6, flex: "1 1 260px", fontSize: 13, color: theme.textSoft }}>
-                                    Circuit name
-                                    <input value={circuit.name} onChange={(event) => updateCircuitDraft(circuitIndex, "name", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text }} />
-                                  </label>
-                                  <button type="button" onClick={() => removeCircuitDraft(circuitIndex)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Remove circuit</button>
-                                </div>
-                                <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
-                                  Exercise lines
-                                  <textarea value={circuit.itemsText} onChange={(event) => updateCircuitDraft(circuitIndex, "itemsText", event.target.value)} spellCheck={false} style={{ minHeight: 120, resize: "vertical", padding: 12, borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", lineHeight: 1.5 }} />
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                            <button type="button" onClick={addCircuitDraft} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Add circuit</button>
-                            <button type="button" onClick={saveWorkoutEdit} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Save changes</button>
-                            <button type="button" onClick={cancelWorkoutEdit} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Cancel</button>
-                          </div>
-                        </div>
-                      ) : null}
-
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 18 }}>
-                        {workout.circuits.map((circuit, circuitIndex) => (
-                          <div key={`${workout.workout}-${workout.date}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, display: "grid", gap: 14, background: theme.surfaceStrong }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                              <h4 style={{ margin: 0, fontSize: 16, color: theme.text }}>{circuit.name}</h4>
-                              <span style={{ fontSize: 12, color: theme.textMuted }}>{circuit.totalSets} sets</span>
+                        {isEditing && editingDraft ? (
+                          <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surfaceStrong, display: "grid", gap: 14 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                              <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
+                                Workout #
+                                <input value={editingDraft.workout} onChange={(event) => updateWorkoutDraft("workout", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                              </label>
+                              <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
+                                Date
+                                <input value={editingDraft.date} onChange={(event) => updateWorkoutDraft("date", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                              </label>
+                              <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft, gridColumn: "span 2" }}>
+                                Title
+                                <input value={editingDraft.title} onChange={(event) => updateWorkoutDraft("title", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                              </label>
                             </div>
-                            <div style={{ display: "grid", gap: 14 }}>
-                              {circuit.exercises.map((exercise) => (
-                                <div key={exercise.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "grid", gap: 10 }}>
-                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                                    <div>
-                                      <div style={{ fontWeight: 700, color: theme.text }}>{exercise.movementLabel}</div>
-                                      <div style={{ fontSize: 13, color: theme.textSoft, marginTop: 4 }}>{exercise.name}</div>
-                                      {exercise.trend?.previousDateLabel ? <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>Compared with {exercise.trend.previousDateLabel}</div> : <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>First appearance in the current log</div>}
-                                    </div>
-                                    <GroupBadge family={exercise.taxonomy.family} group={exercise.taxonomy.group} compact />
+                            <div style={{ display: "grid", gap: 12 }}>
+                              {editingDraft.circuits.map((circuit, circuitIndex) => (
+                                <div key={`${workoutKey}-draft-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "grid", gap: 10 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                                    <label style={{ display: "grid", gap: 6, flex: "1 1 260px", fontSize: 13, color: theme.textSoft }}>
+                                      Circuit name
+                                      <input value={circuit.name} onChange={(event) => updateCircuitDraft(circuitIndex, "name", event.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text }} />
+                                    </label>
+                                    <button type="button" onClick={() => removeCircuitDraft(circuitIndex)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Remove circuit</button>
                                   </div>
-                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                    {exercise.trend?.hasRepData ? <TrendPill label="Best reps" delta={exercise.trend.repDelta} compact /> : exercise.trend?.hasTimeData ? <TrendPill label="Best hold" delta={exercise.trend.timeDelta} suffix="s" compact /> : <TrendPill label="Best reps" delta={null} emptyLabel="No prior log" compact />}
-                                    <TrendPill label="Load" delta={exercise.trend?.loadDelta ?? null} suffix=" lb" compact />
-                                  </div>
-                                  <div style={{ display: "grid", gap: 6, color: theme.textSoft, fontSize: 14 }}>{exercise.variations.map((variation) => <div key={variation.id}>{variation.summary}</div>)}</div>
+                                  <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
+                                    Exercise lines
+                                    <textarea value={circuit.itemsText} onChange={(event) => updateCircuitDraft(circuitIndex, "itemsText", event.target.value)} spellCheck={false} style={{ minHeight: 120, resize: "vertical", padding: 12, borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", lineHeight: 1.5 }} />
+                                  </label>
                                 </div>
                               ))}
                             </div>
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                              <button type="button" onClick={addCircuitDraft} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Add circuit</button>
+                              <button type="button" onClick={saveWorkoutEdit} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Save changes</button>
+                              <button type="button" onClick={cancelWorkoutEdit} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.textSoft }}>Cancel</button>
+                            </div>
                           </div>
-                        ))}
+                        ) : null}
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 18 }}>
+                          {workout.circuits.map((circuit, circuitIndex) => (
+                            <div key={`${workout.workout}-${workout.date}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, display: "grid", gap: 14, background: theme.surfaceStrong }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                                <h4 style={{ margin: 0, fontSize: 16, color: theme.text }}>{circuit.name}</h4>
+                                <span style={{ fontSize: 12, color: theme.textMuted }}>{circuit.totalSets} sets</span>
+                              </div>
+                              <div style={{ display: "grid", gap: 14 }}>
+                                {circuit.exercises.map((exercise) => (
+                                  <div key={exercise.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "grid", gap: 10 }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                                      <div>
+                                        <div style={{ fontWeight: 700, color: theme.text }}>{exercise.movementLabel}</div>
+                                        <div style={{ fontSize: 13, color: theme.textSoft, marginTop: 4 }}>{exercise.name}</div>
+                                        {exercise.trend?.previousDateLabel ? <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>Compared with {exercise.trend.previousDateLabel}</div> : <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>First appearance in the current log</div>}
+                                      </div>
+                                      <GroupBadge family={exercise.taxonomy.family} group={exercise.taxonomy.group} compact />
+                                    </div>
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                      {exercise.trend?.hasRepData ? <TrendPill label="Best reps" delta={exercise.trend.repDelta} compact /> : exercise.trend?.hasTimeData ? <TrendPill label="Best hold" delta={exercise.trend.timeDelta} suffix="s" compact /> : <TrendPill label="Best reps" delta={null} emptyLabel="No prior log" compact />}
+                                      <TrendPill label="Load" delta={exercise.trend?.loadDelta ?? null} suffix=" lb" compact />
+                                    </div>
+                                    <div style={{ display: "grid", gap: 6, color: theme.textSoft, fontSize: 14 }}>{exercise.variations.map((variation) => <div key={variation.id}>{variation.summary}</div>)}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </details>
-                );
-              })}
+                    </details>
+                  );
+                })}
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
+        {activeTab === "index" && (
+          <SectionCard title="Exercise index" subtitle="Customize each exercise's primary and secondary muscle impact for this client.">
+            <div style={{ border: `1px solid ${theme.border}`, borderRadius: 12, padding: 12, background: theme.surfaceStrong, color: theme.textSoft, fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
+              Use <strong style={{ color: theme.text }}>Primary groups</strong> for full impact and <strong style={{ color: theme.text }}>Secondary groups</strong> for partial impact in the heatmap. Hold <strong style={{ color: theme.text }}>⌘</strong> (Mac) while clicking to multi-select.
+            </div>
+            <div style={{ maxHeight: 720, overflow: "auto", paddingRight: 4 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+                {exerciseIndex
+                  .filter((exercise) => !query.trim() || normalizeText(`${exercise.name} ${exercise.family} ${exercise.group} ${exercise.exampleExerciseName}`).includes(normalizeText(query)))
+                  .map((exercise) => {
+                    const selection = getExerciseImpactSelection(exercise);
+                    return (
+                      <div key={exercise.canonicalName} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, display: "grid", gap: 10, background: theme.surfaceStrong }}>
+                        <div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div>
+                        <div style={{ fontSize: 13, color: theme.textSoft }}>{exercise.exampleExerciseName}</div>
+                        <GroupBadge family={exercise.family} group={exercise.group} />
+                        <div style={{ fontSize: 13, color: theme.textMuted }}>{exercise.sessionCount} session{exercise.sessionCount === 1 ? "" : "s"}</div>
+
+                        <label style={{ display: "grid", gap: 6, fontSize: 12, color: theme.textMuted }}>
+                          Primary groups
+                          <select
+                            multiple
+                            value={selection.primaryKeys}
+                            onChange={(event) => {
+                              const primaryKeys = Array.from(event.target.selectedOptions).map((option) => option.value);
+                              updateExerciseImpactOverride(exercise, primaryKeys, selection.secondaryKeys);
+                            }}
+                            style={{ minHeight: 108, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text, borderRadius: 10, padding: 8 }}
+                          >
+                            {impactGroupOptions.map((option) => <option key={`${exercise.canonicalName}-primary-${option.key}`} value={option.key}>{option.label}</option>)}
+                          </select>
+                        </label>
+
+                        <label style={{ display: "grid", gap: 6, fontSize: 12, color: theme.textMuted }}>
+                          Secondary groups
+                          <select
+                            multiple
+                            value={selection.secondaryKeys}
+                            onChange={(event) => {
+                              const secondaryKeys = Array.from(event.target.selectedOptions).map((option) => option.value);
+                              updateExerciseImpactOverride(exercise, selection.primaryKeys, secondaryKeys);
+                            }}
+                            style={{ minHeight: 108, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text, borderRadius: 10, padding: 8 }}
+                          >
+                            {impactGroupOptions.map((option) => <option key={`${exercise.canonicalName}-secondary-${option.key}`} value={option.key}>{option.label}</option>)}
+                          </select>
+                        </label>
+
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {selection.primaryKeys.map((groupKey) => {
+                            const option = impactGroupLookup.get(groupKey) ?? parseImpactGroupKey(groupKey);
+                            if (!option) return null;
+                            return <span key={`${exercise.canonicalName}-primary-chip-${groupKey}`} style={{ borderRadius: 999, padding: "5px 9px", fontSize: 11, border: `1px solid ${theme.border}`, background: theme.accentSoft, color: theme.accentStrong }}>Primary: {option.family} · {option.group}</span>;
+                          })}
+                          {selection.secondaryKeys.map((groupKey) => {
+                            const option = impactGroupLookup.get(groupKey) ?? parseImpactGroupKey(groupKey);
+                            if (!option) return null;
+                            return <span key={`${exercise.canonicalName}-secondary-chip-${groupKey}`} style={{ borderRadius: 999, padding: "5px 9px", fontSize: 11, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textSoft }}>Secondary: {option.family} · {option.group}</span>;
+                          })}
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => updateExerciseImpactOverride(exercise, [toImpactGroupKey(exercise.family, exercise.group)], [])}
+                            style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 10, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 700, color: theme.textSoft }}
+                          >
+                            Reset to default
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           </SectionCard>
         )}
-
-        {activeTab === "index" && <SectionCard title="Exercise index" subtitle="Movement buckets with example exercises and total session counts."><div style={{ maxHeight: 620, overflow: "auto", paddingRight: 4 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>{exerciseIndex.filter((exercise) => !query.trim() || normalizeText(`${exercise.name} ${exercise.family} ${exercise.group} ${exercise.exampleExerciseName}`).includes(normalizeText(query))).map((exercise) => <div key={`${exercise.family}-${exercise.group}-${exercise.name}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, display: "grid", gap: 8, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{exercise.exampleExerciseName}</div><GroupBadge family={exercise.family} group={exercise.group} /><div style={{ fontSize: 13, color: theme.textMuted }}>{exercise.sessionCount} session{exercise.sessionCount === 1 ? "" : "s"}</div></div>)}</div></div></SectionCard>}
 
         {activeTab === "intake" && <div ref={intakeSectionRef} style={{ display: "grid", gap: 18 }}><SectionCard title="Trainer note intake" subtitle={`Paste coach notes for ${activeClient?.name}, preview the parse, and merge them into this client's dashboard.`}><div style={intakeSplitStyle}><div style={{ display: "grid", gap: 12 }}><textarea value={trainerNotes} onChange={(event) => setTrainerNotes(event.target.value)} placeholder="Paste or Type Notes Here" spellCheck={false} style={{ width: "100%", minHeight: isMobile ? 320 : 420, resize: "vertical", padding: 14, borderRadius: 14, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, lineHeight: 1.6, boxSizing: "border-box" }} /><div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}><button type="button" onClick={previewTrainerNotes} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Preview parse</button><button type="button" onClick={importTrainerNotes} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Import workouts</button></div>{intakeError ? <div style={{ border: "1px solid #d5c5c0", background: "#e8ddda", color: "#7e645e", borderRadius: 12, padding: 12 }}>{intakeError}</div> : null}{intakeMessage ? <div style={{ border: "1px solid #c2cec0", background: "#d9e4d7", color: "#567053", borderRadius: 12, padding: 12 }}>{intakeMessage}</div> : null}</div><div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}><div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>Flexible parser cues</div><div style={{ fontSize: 13, color: theme.textSoft, lineHeight: 1.65 }}>The parser handles loose headers, shorthand like `3x10`, unbulleted exercise rows, and section labels like `Warm Up`, `Circuit`, or `Finisher`.</div><pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.6, color: theme.textSoft }}>{trainerNotesExample}</pre></div></div></SectionCard><SectionCard title="Parsed preview" subtitle="Review confidence, structure, and flagged items before importing.">{previewStructuredWorkouts.length === 0 ? <div style={{ color: theme.textSoft }}>No preview yet. Paste notes and click `Preview parse`.</div> : <div style={{ display: "grid", gap: 18 }}><div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 180 : 220}px, 1fr))`, gap: 14 }}><InsightStatCard label="Previewed workouts" value={previewStructuredWorkouts.length} subtitle={`${trainerPreviewModel.totalWarnings} flagged review item${trainerPreviewModel.totalWarnings === 1 ? "" : "s"}`} tone={trainerPreviewModel.totalWarnings > 0 ? "warning" : "positive"} /><InsightStatCard label="Average confidence" value={`${trainerPreviewModel.averageConfidenceScore}%`} subtitle="Higher scores reflect cleaner structure and fewer review flags" tone={trainerPreviewModel.averageConfidenceScore >= 80 ? "positive" : trainerPreviewModel.averageConfidenceScore >= 55 ? "neutral" : "warning"} /><InsightStatCard label="Existing workouts" value={structuredWorkouts.length} subtitle="Used to flag duplicate dates or workout numbers" tone="neutral" /></div>{trainerPreviewModel.cards.map((card) => <div key={card.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 14 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}><div style={{ display: "grid", gap: 4 }}><div style={{ fontWeight: 700, color: theme.text }}>Workout {card.workout.workout} · {card.workout.dateLabel}</div><div style={{ color: theme.textSoft }}>{card.workout.title}</div><div style={{ fontSize: 13, color: theme.textMuted }}>{card.summary}</div></div><ConfidenceBadge level={card.confidence} score={card.score} /></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><MetricChip label="Sections" value={card.sectionCount} /><MetricChip label="Exercises" value={card.exerciseCount} /><MetricChip label="Parsed sets" value={card.parsedSetCount} /></div><div style={{ display: "grid", gap: 8 }}><div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Likely focus</div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{card.topGroups.length > 0 ? card.topGroups.map((group) => <GroupBadge key={`${card.id}-${group.family}-${group.group}`} family={group.family} group={group.group} />) : <span style={{ color: theme.textSoft, fontSize: 13 }}>No focus groups detected.</span>}</div></div><div style={{ display: "grid", gap: 8 }}>{card.warnings.length > 0 ? card.warnings.map((warning) => <div key={`${card.id}-${warning}`} style={{ border: `1px solid ${insightTones.warning.border}`, borderRadius: 12, padding: 12, background: insightTones.warning.background, color: insightTones.warning.accent, fontSize: 13 }}>{warning}</div>) : <div style={{ border: `1px solid ${insightTones.positive.border}`, borderRadius: 12, padding: 12, background: insightTones.positive.background, color: insightTones.positive.accent, fontSize: 13 }}>No review flags. Ready to import.</div>}</div><div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 180 : 220}px, 1fr))`, gap: 12 }}>{card.workout.circuits.map((circuit, circuitIndex) => <div key={`${card.id}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div style={{ fontWeight: 600, color: theme.text }}>{circuit.name}</div><div style={{ fontSize: 12, color: theme.textMuted }}>{circuit.exercises.length} items</div></div><div style={{ marginTop: 8, display: "grid", gap: 6 }}>{circuit.exercises.slice(0, 3).map((exercise) => <div key={exercise.id} style={{ fontSize: 13, color: theme.textSoft }}>{exercise.movementLabel}</div>)}{circuit.exercises.length > 3 ? <div style={{ fontSize: 12, color: theme.textMuted }}>+{circuit.exercises.length - 3} more</div> : null}</div></div>)}</div></div>)}</div>}</SectionCard></div>}
 

@@ -61,6 +61,37 @@ function normalizeWorkoutEditRecords(records = []) {
     }));
 }
 
+function normalizeImpactGroupKeys(groupKeys) {
+  if (!Array.isArray(groupKeys)) return [];
+  const seen = new Set();
+  const normalized = [];
+  groupKeys.forEach((groupKey) => {
+    const value = String(groupKey ?? "").trim();
+    if (!value || !value.includes("::")) return;
+    if (seen.has(value)) return;
+    seen.add(value);
+    normalized.push(value);
+  });
+  return normalized;
+}
+
+function normalizeExerciseImpactOverrides(overrides = {}) {
+  if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) return {};
+  const normalized = {};
+  Object.entries(overrides).forEach(([movementKey, impact]) => {
+    const normalizedMovementKey = String(movementKey ?? "").trim();
+    if (!normalizedMovementKey) return;
+    const primary = normalizeImpactGroupKeys(impact?.primary);
+    const secondary = normalizeImpactGroupKeys(impact?.secondary).filter((groupKey) => !primary.includes(groupKey));
+    if (primary.length === 0 && secondary.length === 0) return;
+    normalized[normalizedMovementKey] = {
+      primary,
+      secondary,
+    };
+  });
+  return normalized;
+}
+
 export function createSeedClient({ seedWorkouts = [], seedWeeklyTargets = [], trainerNotesExample = "" } = {}) {
   return {
     id: DEFAULT_CLIENT_ID,
@@ -71,6 +102,7 @@ export function createSeedClient({ seedWorkouts = [], seedWeeklyTargets = [], tr
     weeklyTargets: normalizeWeeklyTargets(seedWeeklyTargets),
     importedWorkouts: [],
     editedWorkoutRecords: [],
+    exerciseImpactOverrides: {},
     trainerNotes: trainerNotesExample,
   };
 }
@@ -85,6 +117,7 @@ export function createBlankClient(name) {
     weeklyTargets: [],
     importedWorkouts: [],
     editedWorkoutRecords: [],
+    exerciseImpactOverrides: {},
     trainerNotes: "",
   };
 }
@@ -99,6 +132,7 @@ export function normalizeClientRecord(client, fallback) {
     weeklyTargets: normalizeWeeklyTargets(Array.isArray(client?.weeklyTargets) ? client.weeklyTargets : Array.isArray(fallback?.weeklyTargets) ? fallback.weeklyTargets : []),
     importedWorkouts: Array.isArray(client?.importedWorkouts) ? client.importedWorkouts : [],
     editedWorkoutRecords: normalizeWorkoutEditRecords(client?.editedWorkoutRecords),
+    exerciseImpactOverrides: normalizeExerciseImpactOverrides(client?.exerciseImpactOverrides ?? fallback?.exerciseImpactOverrides),
     trainerNotes: String(client?.trainerNotes ?? fallback?.trainerNotes ?? ""),
   };
 }

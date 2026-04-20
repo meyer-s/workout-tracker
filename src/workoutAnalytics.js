@@ -1,5 +1,51 @@
 import { dedupeWorkouts, formatDateLabel, groupBy, normalizeText, parseExerciseItem } from "./workoutParser";
 
+function normalizeImpactGroupKeys(groupKeys) {
+  if (!Array.isArray(groupKeys)) return [];
+  const seen = new Set();
+  const normalized = [];
+  groupKeys.forEach((groupKey) => {
+    const value = String(groupKey ?? "").trim();
+    if (!value || !value.includes("::")) return;
+    if (seen.has(value)) return;
+    seen.add(value);
+    normalized.push(value);
+  });
+  return normalized;
+}
+
+function parseImpactGroupKey(groupKey) {
+  const [family, ...groupParts] = String(groupKey ?? "").split("::");
+  const group = groupParts.join("::").trim();
+  if (!family || !group) return null;
+  return {
+    family: family.trim(),
+    group,
+  };
+}
+
+function applyExerciseImpactOverride(exercise, override) {
+  const defaultGroupKey = `${exercise.taxonomy.family}::${exercise.taxonomy.group}`;
+  const primaryKeys = normalizeImpactGroupKeys(override?.primary);
+  const secondaryKeys = normalizeImpactGroupKeys(override?.secondary).filter((groupKey) => !primaryKeys.includes(groupKey));
+  const resolvedPrimaryKeys = primaryKeys.length > 0 ? primaryKeys : [defaultGroupKey];
+  const primaryTaxonomies = resolvedPrimaryKeys.map(parseImpactGroupKey).filter(Boolean);
+  const secondaryTaxonomies = secondaryKeys.map(parseImpactGroupKey).filter(Boolean);
+  const resolvedTaxonomy = primaryTaxonomies[0] ?? exercise.taxonomy;
+  return {
+    ...exercise,
+    taxonomy: resolvedTaxonomy,
+    impactProfile: {
+      primary: primaryTaxonomies,
+      secondary: secondaryTaxonomies,
+      primaryKeys: resolvedPrimaryKeys,
+      secondaryKeys,
+      defaultGroupKey,
+    },
+    searchText: normalizeText([exercise.searchText, ...resolvedPrimaryKeys, ...secondaryKeys].join(" ")),
+  };
+}
+
 function getBestCountDelta(currentRecord, previousRecord) {
   if (!previousRecord) return null;
   if ((currentRecord.bestCountSet ?? 0) <= 0 && (previousRecord.bestCountSet ?? 0) <= 0) return null;
@@ -16,7 +62,8 @@ function getGrowthScore({ loadDelta, bestCountDelta, bestTimeDelta, setDelta, se
   return (loadDelta ?? 0) * 5 + (bestCountDelta ?? 0) * 3 + (bestTimeDelta ?? 0) / 5 + setDelta * 2 + Math.max(sessionCount - 1, 0) * 3;
 }
 
-export function buildDashboardData(workoutList) {
+export function buildDashboardData(workoutList, options = {}) {
+  const exerciseImpactOverrides = options?.exerciseImpactOverrides ?? {};
   const structuredWorkouts = dedupeWorkouts(workoutList).map((workout, workoutIndex) => {
     const circuits = workout.circuits.map((circuit, circuitIndex) => {
       const exercises = circuit.items.map((item, itemIndex) => parseExerciseItem(item, {
@@ -29,7 +76,7 @@ export function buildDashboardData(workoutList) {
         circuitName: circuit.name,
         circuitIndex,
         itemIndex,
-      }));
+      })).map((exercise) => applyExerciseImpactOverride(exercise, exerciseImpactOverrides[exercise.movementKey]));
       return {
         ...circuit,
         exercises,
@@ -78,6 +125,7 @@ export function buildDashboardData(workoutList) {
         growthScore: getGrowthScore({ loadDelta, bestCountDelta, bestTimeDelta, setDelta, sessionCount: sortedRecords.length }),
         searchText: normalizeText([first.movementLabel, first.name, first.taxonomy.family, first.taxonomy.group, ...sortedRecords.map((record) => `${record.workoutTitle} ${record.date} ${record.raw}`)].join(" ")),
         records: sortedRecords,
+        impactProfile: first.impactProfile,
       };
     })
     .sort((left, right) => right.growthScore - left.growthScore || right.sessionCount - left.sessionCount);
@@ -111,10 +159,13 @@ export function buildDashboardData(workoutList) {
   const exerciseIndex = [...exerciseHistories]
     .sort((left, right) => left.name.localeCompare(right.name))
     .map((history) => ({
+      canonicalName: history.canonicalName,
       name: history.name,
       exampleExerciseName: history.exampleExerciseName,
       family: history.taxonomy.family,
       group: history.taxonomy.group,
+      primaryImpactKeys: history.impactProfile?.primaryKeys ?? [`${history.taxonomy.family}::${history.taxonomy.group}`],
+      secondaryImpactKeys: history.impactProfile?.secondaryKeys ?? [],
       sessionCount: history.sessionCount,
     }));
 
