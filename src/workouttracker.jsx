@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   LineChart,
   Line,
@@ -39,7 +39,7 @@ const DEFAULT_CALORIE_THRESHOLD_PERCENT = 40;
 const DEFAULT_ZONE_THRESHOLD_PERCENT = 90;
 const ADD_NEW_CLIENT_OPTION = "__add_new_client__";
 
-function createWeeklyTarget({ week, calories, reportedCalories = calories, calorieThresholdPercent = DEFAULT_CALORIE_THRESHOLD_PERCENT, zoneMinutes = null, zonePercent = zoneMinutes === null ? null : DEFAULT_ZONE_THRESHOLD_PERCENT, reportedZoneMinutes = null }) {
+function createWeeklyTarget({ week, calories, reportedCalories = calories, calorieThresholdPercent = DEFAULT_CALORIE_THRESHOLD_PERCENT, zoneMinutes = null, zonePercent = zoneMinutes === null ? null : DEFAULT_ZONE_THRESHOLD_PERCENT, reportedZoneMinutes = null, unsupervisedCalories = 0, unsupervisedZoneMinutes = 0, unsupervisedNotes = "" }) {
   return {
     week,
     calories,
@@ -48,6 +48,9 @@ function createWeeklyTarget({ week, calories, reportedCalories = calories, calor
     zoneMinutes,
     zonePercent,
     reportedZoneMinutes,
+    unsupervisedCalories,
+    unsupervisedZoneMinutes,
+    unsupervisedNotes,
   };
 }
 
@@ -1098,6 +1101,18 @@ function getWeeklyStatus(goalValue, actualValue) {
   return { label: "Building", color: theme.textSoft, background: theme.surfaceMuted };
 }
 
+function parseNullableNumberInput(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseNonNegativeNumberInput(value, fallback = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, parsed);
+}
+
 export default function TrainingLogDashboard() {
   const seedClient = useMemo(() => createSeedClient({ seedWorkouts: workouts, seedWeeklyTargets: weeklyTargets, trainerNotesExample }), []);
   const [query, setQuery] = useState("");
@@ -1108,7 +1123,7 @@ export default function TrainingLogDashboard() {
   const [newClientName, setNewClientName] = useState("");
   const [isClientAddMode, setIsClientAddMode] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [trainerNotes, setTrainerNotes] = useState(trainerNotesExample);
+  const [trainerNotes, setTrainerNotes] = useState("");
   const [previewWorkouts, setPreviewWorkouts] = useState([]);
   const [intakeError, setIntakeError] = useState("");
   const [intakeMessage, setIntakeMessage] = useState("");
@@ -1117,6 +1132,10 @@ export default function TrainingLogDashboard() {
   const [workoutEditError, setWorkoutEditError] = useState("");
   const [workoutEditMessage, setWorkoutEditMessage] = useState("");
   const [clientMessage, setClientMessage] = useState("");
+  const [editingWeeklyWeek, setEditingWeeklyWeek] = useState(null);
+  const [weeklyTargetDraft, setWeeklyTargetDraft] = useState(null);
+  const [weeklyTargetMessage, setWeeklyTargetMessage] = useState("");
+  const intakeSectionRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -1188,11 +1207,15 @@ export default function TrainingLogDashboard() {
       zoneMinutes: week?.zoneMinutes === null || week?.zoneMinutes === undefined || week?.zoneMinutes === "" ? week?.intensity === null || week?.intensity === undefined || week?.intensity === "" ? null : Number(week.intensity) : Number(week.zoneMinutes),
       zonePercent: week?.zonePercent === null || week?.zonePercent === undefined || week?.zonePercent === "" ? (week?.zoneMinutes === null || week?.zoneMinutes === undefined || week?.zoneMinutes === "" ? week?.intensity === null || week?.intensity === undefined || week?.intensity === "" ? null : DEFAULT_ZONE_THRESHOLD_PERCENT : DEFAULT_ZONE_THRESHOLD_PERCENT) : Number(week.zonePercent),
       reportedZoneMinutes: week?.reportedZoneMinutes === null || week?.reportedZoneMinutes === undefined || week?.reportedZoneMinutes === "" ? null : Number(week.reportedZoneMinutes),
+      unsupervisedCalories: week?.unsupervisedCalories === null || week?.unsupervisedCalories === undefined || week?.unsupervisedCalories === "" ? 0 : Number(week.unsupervisedCalories),
+      unsupervisedZoneMinutes: week?.unsupervisedZoneMinutes === null || week?.unsupervisedZoneMinutes === undefined || week?.unsupervisedZoneMinutes === "" ? 0 : Number(week.unsupervisedZoneMinutes),
+      unsupervisedNotes: String(week?.unsupervisedNotes ?? ""),
     }));
   }, [activeClient]);
 
   useEffect(() => {
-    setTrainerNotes(activeClient?.trainerNotes || trainerNotesExample);
+    const defaultNotes = activeClient?.trainerNotes && activeClient.trainerNotes !== trainerNotesExample ? activeClient.trainerNotes : "";
+    setTrainerNotes(defaultNotes);
     setPreviewWorkouts([]);
     setIntakeError("");
     setIntakeMessage("");
@@ -1381,6 +1404,69 @@ export default function TrainingLogDashboard() {
     setIsMobileNavOpen(false);
   };
 
+  const beginWeeklyTargetEdit = (week) => {
+    setEditingWeeklyWeek(week.week);
+    setWeeklyTargetDraft({
+      week: week.week,
+      calories: String(week.calories ?? 0),
+      reportedCalories: String(week.reportedCalories ?? 0),
+      calorieThresholdPercent: String(week.calorieThresholdPercent ?? DEFAULT_CALORIE_THRESHOLD_PERCENT),
+      zoneMinutes: week.zoneMinutes === null ? "" : String(week.zoneMinutes),
+      zonePercent: week.zonePercent === null ? "" : String(week.zonePercent),
+      reportedZoneMinutes: week.reportedZoneMinutes === null || week.reportedZoneMinutes === undefined ? "" : String(week.reportedZoneMinutes),
+      unsupervisedCalories: String(week.unsupervisedCalories ?? 0),
+      unsupervisedZoneMinutes: String(week.unsupervisedZoneMinutes ?? 0),
+      unsupervisedNotes: week.unsupervisedNotes ?? "",
+    });
+    setWeeklyTargetMessage("");
+  };
+
+  const cancelWeeklyTargetEdit = () => {
+    setEditingWeeklyWeek(null);
+    setWeeklyTargetDraft(null);
+  };
+
+  const updateWeeklyTargetDraft = (field, value) => {
+    setWeeklyTargetDraft((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const saveWeeklyTargetEdit = () => {
+    if (!weeklyTargetDraft || editingWeeklyWeek === null) return;
+    const parsedCalories = parseNonNegativeNumberInput(weeklyTargetDraft.calories, 0);
+    const parsedReportedCalories = parseNonNegativeNumberInput(weeklyTargetDraft.reportedCalories, 0);
+    const parsedCalorieThreshold = parseNonNegativeNumberInput(weeklyTargetDraft.calorieThresholdPercent, DEFAULT_CALORIE_THRESHOLD_PERCENT);
+    const parsedZoneMinutes = parseNullableNumberInput(weeklyTargetDraft.zoneMinutes);
+    const parsedZonePercent = parsedZoneMinutes === null
+      ? null
+      : parseNonNegativeNumberInput(weeklyTargetDraft.zonePercent, DEFAULT_ZONE_THRESHOLD_PERCENT);
+    const parsedReportedZoneMinutes = parsedZoneMinutes === null
+      ? null
+      : parseNullableNumberInput(weeklyTargetDraft.reportedZoneMinutes);
+    const parsedUnsupervisedCalories = parseNonNegativeNumberInput(weeklyTargetDraft.unsupervisedCalories, 0);
+    const parsedUnsupervisedZoneMinutes = parseNonNegativeNumberInput(weeklyTargetDraft.unsupervisedZoneMinutes, 0);
+
+    const normalizedTargets = activeWeeklyTargets.map((week) => week.week === editingWeeklyWeek ? {
+      ...week,
+      calories: parsedCalories,
+      reportedCalories: parsedReportedCalories,
+      calorieThresholdPercent: parsedCalorieThreshold,
+      zoneMinutes: parsedZoneMinutes,
+      zonePercent: parsedZonePercent,
+      reportedZoneMinutes: parsedReportedZoneMinutes,
+      unsupervisedCalories: parsedUnsupervisedCalories,
+      unsupervisedZoneMinutes: parsedUnsupervisedZoneMinutes,
+      unsupervisedNotes: String(weeklyTargetDraft.unsupervisedNotes || "").trim(),
+    } : week);
+
+    updateActiveClient((client) => ({
+      ...client,
+      weeklyTargets: normalizedTargets,
+    }));
+
+    setWeeklyTargetMessage(`Saved Week ${editingWeeklyWeek} updates.`);
+    cancelWeeklyTargetEdit();
+  };
+
   const renderGroupHeader = (group) => {
     const tone = familyColors[group.family] ?? familyColors.Mixed;
     return (
@@ -1440,9 +1526,69 @@ export default function TrainingLogDashboard() {
     },
   ];
 
+  useEffect(() => {
+    if (!isMobile || activeTab !== "intake") return;
+    const frame = window.requestAnimationFrame(() => {
+      intakeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, isMobile]);
+
   return (
     <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${theme.backgroundAccent} 0%, ${theme.background} 100%)`, padding: pagePadding, fontFamily: "Arial, Helvetica, sans-serif", color: theme.text }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+        <div style={{ marginBottom: 18, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceStrong, boxShadow: theme.shadow, overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: isMobile ? "12px 14px" : "12px 16px", flexWrap: "wrap" }}>
+            <div style={{ display: "grid", gap: 6, minWidth: isMobile ? "100%" : 300 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Active client</div>
+              <select
+                value={isClientAddMode ? ADD_NEW_CLIENT_OPTION : activeClientId}
+                onChange={(event) => handleClientSelectionChange(event.target.value)}
+                style={{ padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }}
+              >
+                {clients.map((client) => <option key={`header-client-${client.id}`} value={client.id}>{client.name}</option>)}
+                <option value={ADD_NEW_CLIENT_OPTION}>+ Add new...</option>
+              </select>
+              {isClientAddMode ? (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input value={newClientName} onChange={(event) => setNewClientName(event.target.value)} placeholder="New client name" style={{ flex: "1 1 190px", padding: "10px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                  <button type="button" onClick={createClient} disabled={!newClientName.trim()} style={{ border: `1px solid ${theme.borderStrong}`, background: newClientName.trim() ? theme.accent : theme.surfaceMuted, color: newClientName.trim() ? "#f4f6f1" : theme.textMuted, borderRadius: 12, padding: "9px 12px", cursor: newClientName.trim() ? "pointer" : "not-allowed", fontWeight: 700 }}>Add client</button>
+                  <button type="button" onClick={() => { setIsClientAddMode(false); setNewClientName(""); }} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textSoft, borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+                </div>
+              ) : null}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+              {!isMobile ? clientNavigationTabs.map(([value, label]) => {
+                const isActive = activeTab === value;
+                return (
+                  <button key={`header-topbar-${value}`} type="button" onClick={() => { setActiveTab(value); setIsMobileNavOpen(false); }} style={{ border: `1px solid ${isActive ? theme.borderStrong : theme.border}`, background: isActive ? theme.accent : theme.surface, color: isActive ? "#f4f6f1" : theme.text, borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 600, boxShadow: isActive ? theme.shadow : "none", fontSize: 13 }}>
+                    {label}
+                  </button>
+                );
+              }) : null}
+              {isMobile ? (
+                <button type="button" onClick={() => setIsMobileNavOpen((current) => !current)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text, borderRadius: 10, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                  {isMobileNavOpen ? "Close" : "☰ Menu"}
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {isMobile && isMobileNavOpen ? (
+            <div style={{ display: "grid", gap: 8, padding: "0 14px 14px", borderTop: `1px solid ${theme.border}` }}>
+              {clientNavigationTabs.map(([value, label]) => {
+                const isActive = activeTab === value;
+                return (
+                  <button key={`header-mobile-topbar-${value}`} type="button" onClick={() => { setActiveTab(value); setIsMobileNavOpen(false); }} style={{ textAlign: "left", border: `1px solid ${isActive ? theme.borderStrong : theme.border}`, background: isActive ? theme.accent : theme.surface, color: isActive ? "#f4f6f1" : theme.text, borderRadius: 12, padding: "10px 12px", cursor: "pointer", fontWeight: 600, boxShadow: isActive ? theme.shadow : "none", fontSize: 13 }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: "inline-block", padding: "6px 12px", borderRadius: 999, background: theme.accentSoft, color: theme.accentStrong, border: `1px solid ${theme.border}`, fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Structured Training Archive</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "space-between", alignItems: "flex-end" }}>
@@ -1459,31 +1605,7 @@ export default function TrainingLogDashboard() {
         <div style={{ marginBottom: isMobile ? 26 : 36 }}>
           <SectionCard title="Client workspace" subtitle="Switch between client records here. Database-backed storage is the next step after this local multi-client layer.">
             <div style={{ display: "grid", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: isCompact ? "minmax(0, 1fr)" : "minmax(280px, 0.95fr) minmax(320px, 1.05fr)", gap: 14, alignItems: "start" }}>
-                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surfaceStrong, display: "grid", gap: 10 }}>
-                  <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
-                    Active client
-                    <select
-                      value={isClientAddMode ? ADD_NEW_CLIENT_OPTION : activeClientId}
-                      onChange={(event) => handleClientSelectionChange(event.target.value)}
-                      style={{ padding: "11px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }}
-                    >
-                      {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
-                      <option value={ADD_NEW_CLIENT_OPTION}>+ Add new...</option>
-                    </select>
-                  </label>
-                  {isClientAddMode ? (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      <input value={newClientName} onChange={(event) => setNewClientName(event.target.value)} placeholder="New client name" style={{ padding: "11px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button type="button" onClick={createClient} disabled={!newClientName.trim()} style={{ border: `1px solid ${theme.borderStrong}`, background: newClientName.trim() ? theme.accent : theme.surfaceMuted, color: newClientName.trim() ? "#f4f6f1" : theme.textMuted, borderRadius: 12, padding: "9px 12px", cursor: newClientName.trim() ? "pointer" : "not-allowed", fontWeight: 700 }}>Add client</button>
-                        <button type="button" onClick={() => { setIsClientAddMode(false); setNewClientName(""); }} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textSoft, borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                   <div style={{ display: "grid", gap: 4 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Trainer-specific actions</div>
                     <div style={{ fontSize: 13, color: theme.textSoft }}>Upload and parse trainer notes before merging them into this client’s log.</div>
@@ -1495,7 +1617,6 @@ export default function TrainingLogDashboard() {
                   >
                     Upload trainer notes
                   </button>
-                </div>
               </div>
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", color: theme.textSoft, fontSize: 13 }}>
@@ -1515,43 +1636,6 @@ export default function TrainingLogDashboard() {
           {overviewInsights.summaryCards.map((card) => (
             <InsightStatCard key={card.id} label={card.label} value={card.value} subtitle={card.subtitle} tone={card.tone} />
           ))}
-        </div>
-
-        <div style={{ marginBottom: 28, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceStrong, boxShadow: theme.shadow, overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: isMobile ? "12px 14px" : "12px 16px" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Client-accessible navigation</div>
-            {isMobile ? (
-              <button type="button" onClick={() => setIsMobileNavOpen((current) => !current)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text, borderRadius: 10, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
-                {isMobileNavOpen ? "Close" : "☰ Menu"}
-              </button>
-            ) : null}
-          </div>
-
-          {!isMobile ? (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "0 16px 14px" }}>
-              {clientNavigationTabs.map(([value, label]) => {
-                const isActive = activeTab === value;
-                return (
-                  <button key={`topbar-${value}`} type="button" onClick={() => { setActiveTab(value); setIsMobileNavOpen(false); }} style={{ border: `1px solid ${isActive ? theme.borderStrong : theme.border}`, background: isActive ? theme.accent : theme.surface, color: isActive ? "#f4f6f1" : theme.text, borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 600, boxShadow: isActive ? theme.shadow : "none", fontSize: 13 }}>
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {isMobile && isMobileNavOpen ? (
-            <div style={{ display: "grid", gap: 8, padding: "0 14px 14px", borderTop: `1px solid ${theme.border}` }}>
-              {clientNavigationTabs.map(([value, label]) => {
-                const isActive = activeTab === value;
-                return (
-                  <button key={`mobile-topbar-${value}`} type="button" onClick={() => { setActiveTab(value); setIsMobileNavOpen(false); }} style={{ textAlign: "left", border: `1px solid ${isActive ? theme.borderStrong : theme.border}`, background: isActive ? theme.accent : theme.surface, color: isActive ? "#f4f6f1" : theme.text, borderRadius: 12, padding: "10px 12px", cursor: "pointer", fontWeight: 600, boxShadow: isActive ? theme.shadow : "none", fontSize: 13 }}>
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
         </div>
 
         {activeTab === "overview" && (
@@ -1921,22 +2005,33 @@ export default function TrainingLogDashboard() {
 
         {activeTab === "index" && <SectionCard title="Exercise index" subtitle="Movement buckets with example exercises and total session counts."><div style={{ maxHeight: 620, overflow: "auto", paddingRight: 4 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>{exerciseIndex.filter((exercise) => !query.trim() || normalizeText(`${exercise.name} ${exercise.family} ${exercise.group} ${exercise.exampleExerciseName}`).includes(normalizeText(query))).map((exercise) => <div key={`${exercise.family}-${exercise.group}-${exercise.name}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, display: "grid", gap: 8, background: theme.surfaceStrong }}><div style={{ fontWeight: 600, color: theme.text }}>{exercise.name}</div><div style={{ fontSize: 13, color: theme.textSoft }}>{exercise.exampleExerciseName}</div><GroupBadge family={exercise.family} group={exercise.group} /><div style={{ fontSize: 13, color: theme.textMuted }}>{exercise.sessionCount} session{exercise.sessionCount === 1 ? "" : "s"}</div></div>)}</div></div></SectionCard>}
 
-        {activeTab === "intake" && <div style={{ display: "grid", gap: 18 }}><SectionCard title="Trainer note intake" subtitle={`Paste coach notes for ${activeClient?.name}, preview the parse, and merge them into this client's dashboard.`}><div style={intakeSplitStyle}><div style={{ display: "grid", gap: 12 }}><textarea value={trainerNotes} onChange={(event) => setTrainerNotes(event.target.value)} spellCheck={false} style={{ width: "100%", minHeight: isMobile ? 320 : 420, resize: "vertical", padding: 14, borderRadius: 14, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, lineHeight: 1.6, boxSizing: "border-box" }} /><div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}><button type="button" onClick={previewTrainerNotes} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Preview parse</button><button type="button" onClick={importTrainerNotes} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Import workouts</button></div>{intakeError ? <div style={{ border: "1px solid #d5c5c0", background: "#e8ddda", color: "#7e645e", borderRadius: 12, padding: 12 }}>{intakeError}</div> : null}{intakeMessage ? <div style={{ border: "1px solid #c2cec0", background: "#d9e4d7", color: "#567053", borderRadius: 12, padding: 12 }}>{intakeMessage}</div> : null}</div><div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}><div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>Flexible parser cues</div><div style={{ fontSize: 13, color: theme.textSoft, lineHeight: 1.65 }}>The parser handles loose headers, shorthand like `3x10`, unbulleted exercise rows, and section labels like `Warm Up`, `Circuit`, or `Finisher`.</div><pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.6, color: theme.textSoft }}>{trainerNotesExample}</pre></div></div></SectionCard><SectionCard title="Parsed preview" subtitle="Review confidence, structure, and flagged items before importing.">{previewStructuredWorkouts.length === 0 ? <div style={{ color: theme.textSoft }}>No preview yet. Paste notes and click `Preview parse`.</div> : <div style={{ display: "grid", gap: 18 }}><div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 180 : 220}px, 1fr))`, gap: 14 }}><InsightStatCard label="Previewed workouts" value={previewStructuredWorkouts.length} subtitle={`${trainerPreviewModel.totalWarnings} flagged review item${trainerPreviewModel.totalWarnings === 1 ? "" : "s"}`} tone={trainerPreviewModel.totalWarnings > 0 ? "warning" : "positive"} /><InsightStatCard label="Average confidence" value={`${trainerPreviewModel.averageConfidenceScore}%`} subtitle="Higher scores reflect cleaner structure and fewer review flags" tone={trainerPreviewModel.averageConfidenceScore >= 80 ? "positive" : trainerPreviewModel.averageConfidenceScore >= 55 ? "neutral" : "warning"} /><InsightStatCard label="Existing workouts" value={structuredWorkouts.length} subtitle="Used to flag duplicate dates or workout numbers" tone="neutral" /></div>{trainerPreviewModel.cards.map((card) => <div key={card.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 14 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}><div style={{ display: "grid", gap: 4 }}><div style={{ fontWeight: 700, color: theme.text }}>Workout {card.workout.workout} · {card.workout.dateLabel}</div><div style={{ color: theme.textSoft }}>{card.workout.title}</div><div style={{ fontSize: 13, color: theme.textMuted }}>{card.summary}</div></div><ConfidenceBadge level={card.confidence} score={card.score} /></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><MetricChip label="Sections" value={card.sectionCount} /><MetricChip label="Exercises" value={card.exerciseCount} /><MetricChip label="Parsed sets" value={card.parsedSetCount} /></div><div style={{ display: "grid", gap: 8 }}><div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Likely focus</div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{card.topGroups.length > 0 ? card.topGroups.map((group) => <GroupBadge key={`${card.id}-${group.family}-${group.group}`} family={group.family} group={group.group} />) : <span style={{ color: theme.textSoft, fontSize: 13 }}>No focus groups detected.</span>}</div></div><div style={{ display: "grid", gap: 8 }}>{card.warnings.length > 0 ? card.warnings.map((warning) => <div key={`${card.id}-${warning}`} style={{ border: `1px solid ${insightTones.warning.border}`, borderRadius: 12, padding: 12, background: insightTones.warning.background, color: insightTones.warning.accent, fontSize: 13 }}>{warning}</div>) : <div style={{ border: `1px solid ${insightTones.positive.border}`, borderRadius: 12, padding: 12, background: insightTones.positive.background, color: insightTones.positive.accent, fontSize: 13 }}>No review flags. Ready to import.</div>}</div><div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 180 : 220}px, 1fr))`, gap: 12 }}>{card.workout.circuits.map((circuit, circuitIndex) => <div key={`${card.id}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div style={{ fontWeight: 600, color: theme.text }}>{circuit.name}</div><div style={{ fontSize: 12, color: theme.textMuted }}>{circuit.exercises.length} items</div></div><div style={{ marginTop: 8, display: "grid", gap: 6 }}>{circuit.exercises.slice(0, 3).map((exercise) => <div key={exercise.id} style={{ fontSize: 13, color: theme.textSoft }}>{exercise.movementLabel}</div>)}{circuit.exercises.length > 3 ? <div style={{ fontSize: 12, color: theme.textMuted }}>+{circuit.exercises.length - 3} more</div> : null}</div></div>)}</div></div>)}</div>}</SectionCard></div>}
+        {activeTab === "intake" && <div ref={intakeSectionRef} style={{ display: "grid", gap: 18 }}><SectionCard title="Trainer note intake" subtitle={`Paste coach notes for ${activeClient?.name}, preview the parse, and merge them into this client's dashboard.`}><div style={intakeSplitStyle}><div style={{ display: "grid", gap: 12 }}><textarea value={trainerNotes} onChange={(event) => setTrainerNotes(event.target.value)} placeholder="Paste or Type Notes Here" spellCheck={false} style={{ width: "100%", minHeight: isMobile ? 320 : 420, resize: "vertical", padding: 14, borderRadius: 14, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, lineHeight: 1.6, boxSizing: "border-box" }} /><div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}><button type="button" onClick={previewTrainerNotes} style={{ border: `1px solid ${theme.border}`, background: theme.surface, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, color: theme.text }}>Preview parse</button><button type="button" onClick={importTrainerNotes} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600 }}>Import workouts</button></div>{intakeError ? <div style={{ border: "1px solid #d5c5c0", background: "#e8ddda", color: "#7e645e", borderRadius: 12, padding: 12 }}>{intakeError}</div> : null}{intakeMessage ? <div style={{ border: "1px solid #c2cec0", background: "#d9e4d7", color: "#567053", borderRadius: 12, padding: 12 }}>{intakeMessage}</div> : null}</div><div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 12 }}><div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>Flexible parser cues</div><div style={{ fontSize: 13, color: theme.textSoft, lineHeight: 1.65 }}>The parser handles loose headers, shorthand like `3x10`, unbulleted exercise rows, and section labels like `Warm Up`, `Circuit`, or `Finisher`.</div><pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.6, color: theme.textSoft }}>{trainerNotesExample}</pre></div></div></SectionCard><SectionCard title="Parsed preview" subtitle="Review confidence, structure, and flagged items before importing.">{previewStructuredWorkouts.length === 0 ? <div style={{ color: theme.textSoft }}>No preview yet. Paste notes and click `Preview parse`.</div> : <div style={{ display: "grid", gap: 18 }}><div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 180 : 220}px, 1fr))`, gap: 14 }}><InsightStatCard label="Previewed workouts" value={previewStructuredWorkouts.length} subtitle={`${trainerPreviewModel.totalWarnings} flagged review item${trainerPreviewModel.totalWarnings === 1 ? "" : "s"}`} tone={trainerPreviewModel.totalWarnings > 0 ? "warning" : "positive"} /><InsightStatCard label="Average confidence" value={`${trainerPreviewModel.averageConfidenceScore}%`} subtitle="Higher scores reflect cleaner structure and fewer review flags" tone={trainerPreviewModel.averageConfidenceScore >= 80 ? "positive" : trainerPreviewModel.averageConfidenceScore >= 55 ? "neutral" : "warning"} /><InsightStatCard label="Existing workouts" value={structuredWorkouts.length} subtitle="Used to flag duplicate dates or workout numbers" tone="neutral" /></div>{trainerPreviewModel.cards.map((card) => <div key={card.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 18, background: theme.surfaceStrong, display: "grid", gap: 14 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}><div style={{ display: "grid", gap: 4 }}><div style={{ fontWeight: 700, color: theme.text }}>Workout {card.workout.workout} · {card.workout.dateLabel}</div><div style={{ color: theme.textSoft }}>{card.workout.title}</div><div style={{ fontSize: 13, color: theme.textMuted }}>{card.summary}</div></div><ConfidenceBadge level={card.confidence} score={card.score} /></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><MetricChip label="Sections" value={card.sectionCount} /><MetricChip label="Exercises" value={card.exerciseCount} /><MetricChip label="Parsed sets" value={card.parsedSetCount} /></div><div style={{ display: "grid", gap: 8 }}><div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: theme.textMuted }}>Likely focus</div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{card.topGroups.length > 0 ? card.topGroups.map((group) => <GroupBadge key={`${card.id}-${group.family}-${group.group}`} family={group.family} group={group.group} />) : <span style={{ color: theme.textSoft, fontSize: 13 }}>No focus groups detected.</span>}</div></div><div style={{ display: "grid", gap: 8 }}>{card.warnings.length > 0 ? card.warnings.map((warning) => <div key={`${card.id}-${warning}`} style={{ border: `1px solid ${insightTones.warning.border}`, borderRadius: 12, padding: 12, background: insightTones.warning.background, color: insightTones.warning.accent, fontSize: 13 }}>{warning}</div>) : <div style={{ border: `1px solid ${insightTones.positive.border}`, borderRadius: 12, padding: 12, background: insightTones.positive.background, color: insightTones.positive.accent, fontSize: 13 }}>No review flags. Ready to import.</div>}</div><div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 180 : 220}px, 1fr))`, gap: 12 }}>{card.workout.circuits.map((circuit, circuitIndex) => <div key={`${card.id}-${circuit.name}-${circuitIndex}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}><div style={{ fontWeight: 600, color: theme.text }}>{circuit.name}</div><div style={{ fontSize: 12, color: theme.textMuted }}>{circuit.exercises.length} items</div></div><div style={{ marginTop: 8, display: "grid", gap: 6 }}>{circuit.exercises.slice(0, 3).map((exercise) => <div key={exercise.id} style={{ fontSize: 13, color: theme.textSoft }}>{exercise.movementLabel}</div>)}{circuit.exercises.length > 3 ? <div style={{ fontSize: 12, color: theme.textMuted }}>+{circuit.exercises.length - 3} more</div> : null}</div></div>)}</div></div>)}</div>}</SectionCard></div>}
 
         {activeTab === "weeks" && (
           <SectionCard title="Weekly calorie and zone targets" subtitle={`Weekly scorecards for ${activeClient?.name}, with default thresholds set at ${DEFAULT_CALORIE_THRESHOLD_PERCENT}% HR for calorie reporting and ${DEFAULT_ZONE_THRESHOLD_PERCENT}% HR for zone work unless Ryan adjusts the week.`}>
+            <div style={{ border: `1px solid ${theme.border}`, borderRadius: 12, padding: 12, background: theme.surfaceStrong, color: theme.textSoft, fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
+              Edit goals and log independent sessions directly on each week card. Both trainer and client can record work completed outside supervised sessions.
+            </div>
+            {weeklyTargetMessage ? <div style={{ border: `1px solid ${insightTones.positive.border}`, background: insightTones.positive.background, color: insightTones.positive.accent, borderRadius: 12, padding: 12, marginBottom: 14 }}>{weeklyTargetMessage}</div> : null}
             {activeWeeklyTargets.length === 0 ? (
               <div style={{ color: theme.textSoft }}>No weekly targets stored for this client yet.</div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 260 : 300}px, 1fr))`, gap: 16 }}>
                 {activeWeeklyTargets.map((week) => {
-                  const calorieRatio = getProgressRatio(week.reportedCalories ?? 0, week.calories);
-                  const zoneRatio = week.zoneMinutes === null ? 0 : getProgressRatio(week.reportedZoneMinutes ?? 0, week.zoneMinutes);
-                  const calorieTone = getCompletionTone(week.reportedCalories ?? 0, week.calories);
-                  const zoneTone = getCompletionTone(week.reportedZoneMinutes ?? 0, week.zoneMinutes);
-                  const weekStatus = getWeeklyStatus(week.calories, week.reportedCalories ?? 0);
-                  const zoneStatus = week.zoneMinutes === null ? { label: "Optional", color: theme.textMuted, background: theme.surfaceMuted } : getWeeklyStatus(week.zoneMinutes, week.reportedZoneMinutes ?? 0);
+                  const supervisedCalories = week.reportedCalories ?? 0;
+                  const unsupervisedCalories = week.unsupervisedCalories ?? 0;
+                  const totalCaloriesLogged = supervisedCalories + unsupervisedCalories;
+                  const supervisedZoneMinutes = week.reportedZoneMinutes ?? 0;
+                  const unsupervisedZoneMinutes = week.unsupervisedZoneMinutes ?? 0;
+                  const totalZoneMinutesLogged = week.zoneMinutes === null ? null : supervisedZoneMinutes + unsupervisedZoneMinutes;
+                  const calorieRatio = getProgressRatio(totalCaloriesLogged, week.calories);
+                  const zoneRatio = week.zoneMinutes === null ? 0 : getProgressRatio(totalZoneMinutesLogged ?? 0, week.zoneMinutes);
+                  const calorieTone = getCompletionTone(totalCaloriesLogged, week.calories);
+                  const zoneTone = getCompletionTone(totalZoneMinutesLogged ?? 0, week.zoneMinutes);
+                  const weekStatus = getWeeklyStatus(week.calories, totalCaloriesLogged);
+                  const zoneStatus = week.zoneMinutes === null ? { label: "Optional", color: theme.textMuted, background: theme.surfaceMuted } : getWeeklyStatus(week.zoneMinutes, totalZoneMinutesLogged ?? 0);
                   const isCurrentWeek = latestWeeklyTarget?.week === week.week;
+                  const isEditingWeek = editingWeeklyWeek === week.week;
                   return (
                     <div key={week.week} style={{ border: `1px solid ${isCurrentWeek ? theme.borderStrong : theme.border}`, borderRadius: 20, padding: 18, background: isCurrentWeek ? theme.surfaceStrong : theme.surface, display: "grid", gap: 16, boxShadow: isCurrentWeek ? theme.shadow : "none" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -1944,7 +2039,11 @@ export default function TrainingLogDashboard() {
                           <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: isCurrentWeek ? theme.accentStrong : theme.textMuted }}>{isCurrentWeek ? "Current week" : "Week plan"}</div>
                           <h3 style={{ margin: 0, fontSize: 20, color: theme.text }}>Week {week.week}</h3>
                         </div>
-                        <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: weekStatus.background, color: weekStatus.color, fontSize: 12, fontWeight: 700 }}>{weekStatus.label}</span>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: weekStatus.background, color: weekStatus.color, fontSize: 12, fontWeight: 700 }}>{weekStatus.label}</span>
+                          <button type="button" onClick={() => beginWeeklyTargetEdit(week)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text, borderRadius: 10, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>Edit week</button>
+                          <button type="button" onClick={() => beginWeeklyTargetEdit(week)} style={{ border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.textSoft, borderRadius: 10, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>Add unsupervised cardio</button>
+                        </div>
                       </div>
 
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
@@ -1957,7 +2056,7 @@ export default function TrainingLogDashboard() {
                               </div>
                             </div>
                           </div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>{(week.reportedCalories ?? 0).toLocaleString()} / {week.calories.toLocaleString()}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>{totalCaloriesLogged.toLocaleString()} / {week.calories.toLocaleString()}</div>
                           <div style={{ fontSize: 12, color: theme.textSoft }}>{formatCalorieThreshold(week.calorieThresholdPercent)}</div>
                         </div>
 
@@ -1970,10 +2069,19 @@ export default function TrainingLogDashboard() {
                               </div>
                             </div>
                           </div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>{week.zoneMinutes === null ? "No zone target" : `${week.reportedZoneMinutes ?? 0} / ${week.zoneMinutes} min`}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>{week.zoneMinutes === null ? "No zone target" : `${totalZoneMinutesLogged ?? 0} / ${week.zoneMinutes} min`}</div>
                           <div style={{ fontSize: 12, color: theme.textSoft }}>{week.zoneMinutes === null ? "Trainer can add when needed" : formatZoneThreshold(week.zonePercent)}</div>
                         </div>
                       </div>
+
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <MetricChip label="Supervised cal" value={supervisedCalories.toLocaleString()} />
+                        <MetricChip label="Unsupervised cal" value={unsupervisedCalories.toLocaleString()} />
+                        <MetricChip label="Supervised zone" value={week.zoneMinutes === null ? "n/a" : supervisedZoneMinutes} />
+                        <MetricChip label="Unsupervised zone" value={week.zoneMinutes === null ? "n/a" : unsupervisedZoneMinutes} />
+                      </div>
+
+                      {week.unsupervisedNotes ? <div style={{ border: `1px solid ${theme.border}`, borderRadius: 12, padding: 10, background: theme.surfaceStrong, fontSize: 12, color: theme.textSoft, lineHeight: 1.5 }}><strong style={{ color: theme.text }}>Independent work:</strong> {week.unsupervisedNotes}</div> : null}
 
                       <div style={{ display: "grid", gap: 12 }}>
                         <div style={{ display: "grid", gap: 7 }}>
@@ -2000,6 +2108,59 @@ export default function TrainingLogDashboard() {
                         <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: theme.surfaceStrong, border: `1px solid ${theme.border}`, color: theme.textSoft, fontSize: 12, fontWeight: 700 }}>{formatCalorieThreshold(week.calorieThresholdPercent)}</span>
                         <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: theme.surfaceStrong, border: `1px solid ${theme.border}`, color: theme.textSoft, fontSize: 12, fontWeight: 700 }}>{week.zoneMinutes === null ? "Zone goal open" : formatZoneTarget(week)}</span>
                       </div>
+
+                      {isEditingWeek && weeklyTargetDraft ? (
+                        <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surfaceStrong, display: "grid", gap: 12 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Edit week {week.week}</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+                            <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textSoft }}>
+                              Calorie goal
+                              <input value={weeklyTargetDraft.calories} onChange={(event) => updateWeeklyTargetDraft("calories", event.target.value)} style={{ padding: "9px 10px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                            <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textSoft }}>
+                              Calorie threshold %
+                              <input value={weeklyTargetDraft.calorieThresholdPercent} onChange={(event) => updateWeeklyTargetDraft("calorieThresholdPercent", event.target.value)} style={{ padding: "9px 10px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                            <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textSoft }}>
+                              Supervised calories
+                              <input value={weeklyTargetDraft.reportedCalories} onChange={(event) => updateWeeklyTargetDraft("reportedCalories", event.target.value)} style={{ padding: "9px 10px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                            <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textSoft }}>
+                              Zone target minutes
+                              <input value={weeklyTargetDraft.zoneMinutes} onChange={(event) => updateWeeklyTargetDraft("zoneMinutes", event.target.value)} placeholder="Leave blank for no zone goal" style={{ padding: "9px 10px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                            <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textSoft }}>
+                              Zone threshold %
+                              <input value={weeklyTargetDraft.zonePercent} onChange={(event) => updateWeeklyTargetDraft("zonePercent", event.target.value)} placeholder="Default 90" style={{ padding: "9px 10px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                            <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textSoft }}>
+                              Supervised zone minutes
+                              <input value={weeklyTargetDraft.reportedZoneMinutes} onChange={(event) => updateWeeklyTargetDraft("reportedZoneMinutes", event.target.value)} style={{ padding: "9px 10px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                          </div>
+                          <div style={{ display: "grid", gap: 10 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Independent / unsupervised work</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+                              <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textSoft }}>
+                                Unsupervised calories
+                                <input value={weeklyTargetDraft.unsupervisedCalories} onChange={(event) => updateWeeklyTargetDraft("unsupervisedCalories", event.target.value)} style={{ padding: "9px 10px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                              </label>
+                              <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textSoft }}>
+                                Unsupervised zone minutes
+                                <input value={weeklyTargetDraft.unsupervisedZoneMinutes} onChange={(event) => updateWeeklyTargetDraft("unsupervisedZoneMinutes", event.target.value)} style={{ padding: "9px 10px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                              </label>
+                            </div>
+                            <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textSoft }}>
+                              Notes (e.g., solo cardio)
+                              <textarea value={weeklyTargetDraft.unsupervisedNotes} onChange={(event) => updateWeeklyTargetDraft("unsupervisedNotes", event.target.value)} placeholder="Client/trainer can log independent sessions here." style={{ minHeight: 74, resize: "vertical", padding: 10, borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                            </label>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button type="button" onClick={saveWeeklyTargetEdit} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontWeight: 700 }}>Save week</button>
+                            <button type="button" onClick={cancelWeeklyTargetEdit} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textSoft, borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}

@@ -24,6 +24,13 @@ function normalizeWeeklyTarget(target = {}, index = 0) {
   const reportedZoneMinutes = target?.reportedZoneMinutes === null || target?.reportedZoneMinutes === undefined || target?.reportedZoneMinutes === ""
     ? null
     : Number(target.reportedZoneMinutes);
+  const unsupervisedCalories = target?.unsupervisedCalories === null || target?.unsupervisedCalories === undefined || target?.unsupervisedCalories === ""
+    ? 0
+    : Number(target.unsupervisedCalories);
+  const unsupervisedZoneMinutes = target?.unsupervisedZoneMinutes === null || target?.unsupervisedZoneMinutes === undefined || target?.unsupervisedZoneMinutes === ""
+    ? 0
+    : Number(target.unsupervisedZoneMinutes);
+  const unsupervisedNotes = String(target?.unsupervisedNotes ?? "");
 
   return {
     week: Number(target?.week ?? index + 1),
@@ -33,6 +40,9 @@ function normalizeWeeklyTarget(target = {}, index = 0) {
     zoneMinutes,
     zonePercent,
     reportedZoneMinutes,
+    unsupervisedCalories,
+    unsupervisedZoneMinutes,
+    unsupervisedNotes,
   };
 }
 
