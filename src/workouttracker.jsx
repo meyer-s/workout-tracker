@@ -37,6 +37,7 @@ import { createBlankClient, createSeedClient, normalizeClientStore, updateClient
 
 const DEFAULT_CALORIE_THRESHOLD_PERCENT = 40;
 const DEFAULT_ZONE_THRESHOLD_PERCENT = 90;
+const ADD_NEW_CLIENT_OPTION = "__add_new_client__";
 
 function createWeeklyTarget({ week, calories, reportedCalories = calories, calorieThresholdPercent = DEFAULT_CALORIE_THRESHOLD_PERCENT, zoneMinutes = null, zonePercent = zoneMinutes === null ? null : DEFAULT_ZONE_THRESHOLD_PERCENT, reportedZoneMinutes = null }) {
   return {
@@ -1105,6 +1106,8 @@ export default function TrainingLogDashboard() {
   const [clients, setClients] = useState([seedClient]);
   const [activeClientId, setActiveClientId] = useState(seedClient.id);
   const [newClientName, setNewClientName] = useState("");
+  const [isClientAddMode, setIsClientAddMode] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [trainerNotes, setTrainerNotes] = useState(trainerNotesExample);
   const [previewWorkouts, setPreviewWorkouts] = useState([]);
   const [intakeError, setIntakeError] = useState("");
@@ -1353,13 +1356,29 @@ export default function TrainingLogDashboard() {
     if (editingWorkoutKey === editRecord.originalKey) cancelWorkoutEdit();
   };
 
+  const handleClientSelectionChange = (nextValue) => {
+    if (nextValue === ADD_NEW_CLIENT_OPTION) {
+      setIsClientAddMode(true);
+      setNewClientName("");
+      setClientMessage("");
+      return;
+    }
+    setIsClientAddMode(false);
+    setActiveClientId(nextValue);
+    setClientMessage("");
+  };
+
   const createClient = () => {
-    const client = createBlankClient(newClientName);
+    const trimmedName = newClientName.trim();
+    if (!trimmedName) return;
+    const client = createBlankClient(trimmedName);
     setClients((current) => [...current, client]);
     setActiveClientId(client.id);
     setNewClientName("");
+    setIsClientAddMode(false);
     setClientMessage(`Added ${client.name}.`);
     setActiveTab("overview");
+    setIsMobileNavOpen(false);
   };
 
   const renderGroupHeader = (group) => {
@@ -1375,28 +1394,13 @@ export default function TrainingLogDashboard() {
     );
   };
 
-  const tabGroups = [
-    {
-      id: "analysis",
-      label: "Analysis",
-      subtitle: "Read the training story and spot patterns.",
-      tabs: [["overview", "Overview"], ["progress", "Growth"], ["groups", "Taxonomy"]],
-      tone: theme.surfaceStrong,
-    },
-    {
-      id: "planning",
-      label: "Planning",
-      subtitle: "Review the log and the weekly target plan.",
-      tabs: [["workouts", "Workout log"], ["weeks", "Weekly targets"]],
-      tone: theme.surfaceStrong,
-    },
-    {
-      id: "reference",
-      label: "Reference",
-      subtitle: "Lower-priority lookup tools and support views.",
-      tabs: [["index", "Exercise index"]],
-      tone: theme.surface,
-    },
+  const clientNavigationTabs = [
+    ["overview", "Overview"],
+    ["progress", "Growth"],
+    ["groups", "Taxonomy"],
+    ["workouts", "Workout log"],
+    ["weeks", "Weekly targets"],
+    ["index", "Exercise index"],
   ];
   const isMobile = viewportWidth < 760;
   const isTablet = viewportWidth < 1080;
@@ -1455,39 +1459,51 @@ export default function TrainingLogDashboard() {
         <div style={{ marginBottom: isMobile ? 26 : 36 }}>
           <SectionCard title="Client workspace" subtitle="Switch between client records here. Database-backed storage is the next step after this local multi-client layer.">
             <div style={{ display: "grid", gap: 16 }}>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
-                <label style={{ display: "grid", gap: 6, minWidth: 240, flex: "1 1 260px", fontSize: 13, color: theme.textSoft }}>
-                  Active client
-                  <select value={activeClientId} onChange={(event) => { setActiveClientId(event.target.value); setClientMessage(""); }} style={{ padding: "11px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text }}>
-                    {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
-                  </select>
-                </label>
-                <label style={{ display: "grid", gap: 6, minWidth: 220, flex: "1 1 220px", fontSize: 13, color: theme.textSoft }}>
-                  New client
-                  <input value={newClientName} onChange={(event) => setNewClientName(event.target.value)} placeholder="Client name" style={{ padding: "11px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surfaceStrong, color: theme.text }} />
-                </label>
-                <button type="button" onClick={createClient} disabled={!newClientName.trim()} style={{ border: `1px solid ${theme.borderStrong}`, background: newClientName.trim() ? theme.accent : theme.surfaceMuted, color: newClientName.trim() ? "#f4f6f1" : theme.textMuted, borderRadius: 12, padding: "11px 14px", cursor: newClientName.trim() ? "pointer" : "not-allowed", fontWeight: 600 }}>Create client</button>
+              <div style={{ display: "grid", gridTemplateColumns: isCompact ? "minmax(0, 1fr)" : "minmax(280px, 0.95fr) minmax(320px, 1.05fr)", gap: 14, alignItems: "start" }}>
+                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surfaceStrong, display: "grid", gap: 10 }}>
+                  <label style={{ display: "grid", gap: 6, fontSize: 13, color: theme.textSoft }}>
+                    Active client
+                    <select
+                      value={isClientAddMode ? ADD_NEW_CLIENT_OPTION : activeClientId}
+                      onChange={(event) => handleClientSelectionChange(event.target.value)}
+                      style={{ padding: "11px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }}
+                    >
+                      {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+                      <option value={ADD_NEW_CLIENT_OPTION}>+ Add new...</option>
+                    </select>
+                  </label>
+                  {isClientAddMode ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <input value={newClientName} onChange={(event) => setNewClientName(event.target.value)} placeholder="New client name" style={{ padding: "11px 12px", borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text }} />
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" onClick={createClient} disabled={!newClientName.trim()} style={{ border: `1px solid ${theme.borderStrong}`, background: newClientName.trim() ? theme.accent : theme.surfaceMuted, color: newClientName.trim() ? "#f4f6f1" : theme.textMuted, borderRadius: 12, padding: "9px 12px", cursor: newClientName.trim() ? "pointer" : "not-allowed", fontWeight: 700 }}>Add client</button>
+                        <button type="button" onClick={() => { setIsClientAddMode(false); setNewClientName(""); }} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textSoft, borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Trainer-specific actions</div>
+                    <div style={{ fontSize: 13, color: theme.textSoft }}>Upload and parse trainer notes before merging them into this client’s log.</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("intake"); setIsMobileNavOpen(false); }}
+                    style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap" }}
+                  >
+                    Upload trainer notes
+                  </button>
+                </div>
               </div>
+
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", color: theme.textSoft, fontSize: 13 }}>
                 <span>{clients.length} client{clients.length === 1 ? "" : "s"} loaded</span>
                 <span>•</span>
                 <span>{structuredWorkouts.length} workouts for {activeClient?.name}</span>
                 <span>•</span>
                 <span>{activeWeeklyTargets.length} weekly target rows</span>
-              </div>
-
-              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 14, background: theme.surface, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Trainer-specific actions</div>
-                  <div style={{ fontSize: 13, color: theme.textSoft }}>Upload and parse trainer notes before merging them into this client’s log.</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("intake")}
-                  style={{ border: `1px solid ${theme.borderStrong}`, background: theme.accent, color: "#f4f6f1", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap" }}
-                >
-                  Upload trainer notes
-                </button>
               </div>
 
               {clientMessage ? <div style={{ border: `1px solid ${insightTones.positive.border}`, background: insightTones.positive.background, color: insightTones.positive.accent, borderRadius: 12, padding: 12 }}>{clientMessage}</div> : null}
@@ -1501,28 +1517,41 @@ export default function TrainingLogDashboard() {
           ))}
         </div>
 
-        <div style={{ display: "grid", gap: 14, marginBottom: 28 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Client-accessible navigation</div>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 220 : 250}px, 1fr))`, gap: 14 }}>
-            {tabGroups.map((group) => {
-              const isGroupActive = group.tabs.some(([value]) => value === activeTab);
-              return (
-                <div key={group.id} style={{ border: `1px solid ${isGroupActive ? theme.borderStrong : theme.border}`, borderRadius: 18, padding: 16, background: group.tone, boxShadow: isGroupActive ? theme.shadow : "none", display: "grid", gap: 12, alignContent: "start" }}>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: isGroupActive ? theme.accentStrong : theme.textMuted }}>{group.label}</div>
-                    <div style={{ fontSize: 13, lineHeight: 1.5, color: theme.textSoft }}>{group.subtitle}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {group.tabs.map(([value, label]) => {
-                      const isActive = activeTab === value;
-                      const isReference = group.id === "reference";
-                      return <button key={value} type="button" onClick={() => setActiveTab(value)} style={{ border: `1px solid ${isActive ? theme.borderStrong : theme.border}`, background: isActive ? theme.accent : isReference ? theme.surfaceStrong : theme.surface, color: isActive ? "#f4f6f1" : theme.text, borderRadius: 14, padding: isMobile ? "9px 12px" : "10px 14px", cursor: "pointer", fontWeight: 600, boxShadow: isActive ? theme.shadow : "none", fontSize: isMobile ? 13 : 14, opacity: isReference && !isActive ? 0.92 : 1 }}>{label}</button>;
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+        <div style={{ marginBottom: 28, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceStrong, boxShadow: theme.shadow, overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: isMobile ? "12px 14px" : "12px 16px" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Client-accessible navigation</div>
+            {isMobile ? (
+              <button type="button" onClick={() => setIsMobileNavOpen((current) => !current)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text, borderRadius: 10, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                {isMobileNavOpen ? "Close" : "☰ Menu"}
+              </button>
+            ) : null}
           </div>
+
+          {!isMobile ? (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "0 16px 14px" }}>
+              {clientNavigationTabs.map(([value, label]) => {
+                const isActive = activeTab === value;
+                return (
+                  <button key={`topbar-${value}`} type="button" onClick={() => { setActiveTab(value); setIsMobileNavOpen(false); }} style={{ border: `1px solid ${isActive ? theme.borderStrong : theme.border}`, background: isActive ? theme.accent : theme.surface, color: isActive ? "#f4f6f1" : theme.text, borderRadius: 12, padding: "9px 12px", cursor: "pointer", fontWeight: 600, boxShadow: isActive ? theme.shadow : "none", fontSize: 13 }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {isMobile && isMobileNavOpen ? (
+            <div style={{ display: "grid", gap: 8, padding: "0 14px 14px", borderTop: `1px solid ${theme.border}` }}>
+              {clientNavigationTabs.map(([value, label]) => {
+                const isActive = activeTab === value;
+                return (
+                  <button key={`mobile-topbar-${value}`} type="button" onClick={() => { setActiveTab(value); setIsMobileNavOpen(false); }} style={{ textAlign: "left", border: `1px solid ${isActive ? theme.borderStrong : theme.border}`, background: isActive ? theme.accent : theme.surface, color: isActive ? "#f4f6f1" : theme.text, borderRadius: 12, padding: "10px 12px", cursor: "pointer", fontWeight: 600, boxShadow: isActive ? theme.shadow : "none", fontSize: 13 }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
 
         {activeTab === "overview" && (
