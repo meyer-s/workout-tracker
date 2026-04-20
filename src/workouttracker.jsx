@@ -1097,33 +1097,6 @@ function getWeeklyStatus(goalValue, actualValue) {
   return { label: "Building", color: theme.textSoft, background: theme.surfaceMuted };
 }
 
-function getTopWorkoutGroups(exercises, limit = 2) {
-  const groups = new Map();
-  exercises.forEach((exercise) => {
-    const key = `${exercise.taxonomy.family}::${exercise.taxonomy.group}`;
-    const current = groups.get(key) ?? { family: exercise.taxonomy.family, group: exercise.taxonomy.group, totalSets: 0 };
-    current.totalSets += exercise.totalSets;
-    groups.set(key, current);
-  });
-  return [...groups.values()].sort((left, right) => right.totalSets - left.totalSets).slice(0, limit);
-}
-
-const workoutIntentPalette = {
-  Strength: { background: "#dce5db", color: "#567053", border: "#c1cec0" },
-  Hybrid: { background: "#e3e6dc", color: "#66705e", border: "#ccd2c6" },
-  Conditioning: { background: "#e6ddd4", color: "#7b6755", border: "#d8cabc" },
-  Core: { background: "#dfdbea", color: "#6b617a", border: "#cbc5da" },
-};
-
-function classifyWorkoutIntent(workout) {
-  const title = `${workout.title || ""}`.toLowerCase();
-  if (title.includes("core") && !title.includes("strength")) return { label: "Core", ...workoutIntentPalette.Core };
-  if (title.includes("power") || title.includes("endurance") || title.includes("conditioning") || title.includes("bike")) return { label: "Conditioning", ...workoutIntentPalette.Conditioning };
-  if (title.includes("strength") && title.includes("core")) return { label: "Hybrid", ...workoutIntentPalette.Hybrid };
-  if (title.includes("strength") || title.includes("press") || title.includes("posterior") || title.includes("machine")) return { label: "Strength", ...workoutIntentPalette.Strength };
-  return { label: "Hybrid", ...workoutIntentPalette.Hybrid };
-}
-
 export default function TrainingLogDashboard() {
   const seedClient = useMemo(() => createSeedClient({ seedWorkouts: workouts, seedWeeklyTargets: weeklyTargets, trainerNotesExample }), []);
   const [query, setQuery] = useState("");
@@ -1239,11 +1212,6 @@ export default function TrainingLogDashboard() {
   const zoneTargetWeeks = activeWeeklyTargets.filter((week) => week.zoneMinutes !== null);
   const avgZoneMinutes = zoneTargetWeeks.length > 0 ? Math.round(zoneTargetWeeks.reduce((sum, week) => sum + (week.zoneMinutes ?? 0), 0) / zoneTargetWeeks.length) : 0;
   const latestWeeklyTarget = activeWeeklyTargets[activeWeeklyTargets.length - 1] ?? null;
-  const recentWeeklyTargets = activeWeeklyTargets.slice(-6);
-  const currentWeekCalorieRatio = latestWeeklyTarget ? getProgressRatio(latestWeeklyTarget.reportedCalories ?? 0, latestWeeklyTarget.calories) : 0;
-  const currentWeekZoneRatio = latestWeeklyTarget && latestWeeklyTarget.zoneMinutes !== null ? getProgressRatio(latestWeeklyTarget.reportedZoneMinutes ?? 0, latestWeeklyTarget.zoneMinutes) : 0;
-  const calorieCompletionTone = latestWeeklyTarget ? getCompletionTone(latestWeeklyTarget.reportedCalories ?? 0, latestWeeklyTarget.calories) : getCompletionTone(0, null);
-  const zoneCompletionTone = latestWeeklyTarget ? getCompletionTone(latestWeeklyTarget.reportedZoneMinutes ?? 0, latestWeeklyTarget.zoneMinutes) : getCompletionTone(0, null);
 
   const updateActiveClient = (updater) => {
     if (!activeClient) return;
@@ -1257,14 +1225,6 @@ export default function TrainingLogDashboard() {
   }, [activeSeedWorkouts, editedWorkoutRecords, importedWorkouts]);
   const dashboardData = useMemo(() => buildAnalyticsData(mergedWorkouts), [mergedWorkouts]);
   const { structuredWorkouts, exerciseHistories, taxonomySummary, exerciseIndex, repeatedExercises, topGrowthLeaders, totalParsedSets, dominantGroup } = dashboardData;
-  const recentSessionCadence = structuredWorkouts
-    .slice(-8)
-    .reverse()
-    .map((workout) => ({
-      ...workout,
-      intent: classifyWorkoutIntent(workout),
-      focusGroups: getTopWorkoutGroups(workout.exercises),
-    }));
   const previewStructuredWorkouts = useMemo(() => buildAnalyticsData(previewWorkouts).structuredWorkouts, [previewWorkouts]);
   const overviewInsights = useMemo(() => buildOverviewInsights(dashboardData, activeWeeklyTargets), [dashboardData, activeWeeklyTargets]);
   const cycleInsights = useMemo(() => buildCycleInsights(dashboardData, activeWeeklyTargets), [dashboardData, activeWeeklyTargets]);
@@ -1559,115 +1519,6 @@ export default function TrainingLogDashboard() {
 
         {activeTab === "overview" && (
           <div style={sectionGridStyle}>
-            <SectionCard title="Plan vs actual" subtitle="A visual read on how this week is tracking against Ryan’s current target, without needing to decode the numbers first.">
-              <div style={{ display: "grid", gridTemplateColumns: isCompact ? "minmax(0, 1fr)" : "minmax(0, 1.15fr) minmax(280px, 0.85fr)", gap: sectionCardGap, alignItems: "start" }}>
-                <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: isMobile ? 16 : 20, background: theme.surfaceStrong, display: "grid", gap: 18, boxShadow: theme.shadow }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                    <div style={{ display: "grid", gap: 4 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Current week</div>
-                      <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: theme.text }}>Week {latestWeeklyTarget?.week ?? "—"}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: theme.surface, border: `1px solid ${theme.border}`, color: theme.textSoft, fontSize: 12, fontWeight: 700 }}>{formatCalorieThreshold(latestWeeklyTarget?.calorieThresholdPercent ?? DEFAULT_CALORIE_THRESHOLD_PERCENT)}</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: theme.surface, border: `1px solid ${theme.border}`, color: theme.textSoft, fontSize: 12, fontWeight: 700 }}>{formatZoneThreshold(latestWeeklyTarget?.zonePercent ?? DEFAULT_ZONE_THRESHOLD_PERCENT)}</span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "grid", gap: 16 }}>
-                    <div style={{ display: "grid", gap: 10 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-                        <div style={{ display: "grid", gap: 2 }}>
-                          <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Calories above threshold</div>
-                          <div style={{ fontSize: 18, fontWeight: 700, color: calorieCompletionTone.accent }}>{(latestWeeklyTarget?.reportedCalories ?? 0).toLocaleString()} / {(latestWeeklyTarget?.calories ?? 0).toLocaleString()}</div>
-                        </div>
-                        <div style={{ fontSize: 13, color: theme.textSoft }}>{Math.round(currentWeekCalorieRatio * 100)}%</div>
-                      </div>
-                      <div style={{ position: "relative", height: 18, borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
-                        <div style={{ position: "absolute", inset: 2, borderRadius: 999, background: theme.surfaceMuted }} />
-                        <div style={{ position: "absolute", left: 2, top: 2, bottom: 2, width: `${Math.max(currentWeekCalorieRatio * 100, 4)}%`, borderRadius: 999, background: calorieCompletionTone.fill, boxShadow: `0 0 0 1px ${calorieCompletionTone.glow}` }} />
-                      </div>
-                    </div>
-
-                    <div style={{ display: "grid", gap: 10 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-                        <div style={{ display: "grid", gap: 2 }}>
-                          <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Target-zone minutes</div>
-                          <div style={{ fontSize: 18, fontWeight: 700, color: zoneCompletionTone.accent }}>{latestWeeklyTarget?.zoneMinutes === null ? "—" : `${latestWeeklyTarget?.reportedZoneMinutes ?? 0} / ${latestWeeklyTarget?.zoneMinutes}`}</div>
-                        </div>
-                        <div style={{ fontSize: 13, color: theme.textSoft }}>{latestWeeklyTarget?.zoneMinutes === null ? "n/a" : `${Math.round(currentWeekZoneRatio * 100)}%`}</div>
-                      </div>
-                      <div style={{ position: "relative", height: 18, borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
-                        <div style={{ position: "absolute", inset: 2, borderRadius: 999, background: theme.surfaceMuted }} />
-                        <div style={{ position: "absolute", left: 2, top: 2, bottom: 2, width: `${Math.max(currentWeekZoneRatio * 100, latestWeeklyTarget?.zoneMinutes ? 4 : 0)}%`, borderRadius: 999, background: zoneCompletionTone.fill, boxShadow: `0 0 0 1px ${zoneCompletionTone.glow}` }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gap: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Recent rhythm</div>
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(recentWeeklyTargets.length, 1)}, minmax(0, 1fr))`, gap: 10 }}>
-                    {recentWeeklyTargets.map((week) => {
-                      const calorieRatio = getProgressRatio(week.reportedCalories ?? 0, week.calories);
-                      const zoneRatio = week.zoneMinutes === null ? 0 : getProgressRatio(week.reportedZoneMinutes ?? 0, week.zoneMinutes);
-                      const isCurrent = latestWeeklyTarget?.week === week.week;
-                      return (
-                        <div key={`week-strip-${week.week}`} style={{ border: `1px solid ${isCurrent ? theme.borderStrong : theme.border}`, borderRadius: 16, padding: 12, background: isCurrent ? theme.surfaceStrong : theme.surface, display: "grid", gap: 10, boxShadow: isCurrent ? theme.shadow : "none" }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: isCurrent ? theme.accentStrong : theme.textSoft, textAlign: "center" }}>W{week.week}</div>
-                          <div style={{ height: 64, display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 8 }}>
-                            <div style={{ width: 14, height: 56, borderRadius: 999, background: theme.surfaceMuted, position: "relative", overflow: "hidden" }}>
-                              <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${Math.max(calorieRatio * 100, 6)}%`, background: theme.accentStrong, borderRadius: 999 }} />
-                            </div>
-                            <div style={{ width: 14, height: 56, borderRadius: 999, background: theme.surfaceMuted, position: "relative", overflow: "hidden" }}>
-                              <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${week.zoneMinutes === null ? 0 : Math.max(zoneRatio * 100, 6)}%`, background: week.zoneMinutes === null ? theme.surfaceMuted : insightTones.positive.accent, borderRadius: 999 }} />
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 999, background: theme.accentStrong, opacity: 0.9 }} />
-                            <span style={{ width: 8, height: 8, borderRadius: 999, background: week.zoneMinutes === null ? theme.surfaceMuted : insightTones.positive.accent, opacity: 0.9 }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Training rhythm" subtitle="Recent sessions should feel like a designed cadence rather than a loose pile of workouts.">
-              <div style={{ display: "grid", gap: 14 }}>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 150 : 170}px, 1fr))`, gap: 12 }}>
-                  {recentSessionCadence.length > 0 ? recentSessionCadence.map((workout) => {
-                    const sessionHeight = Math.min(100, Math.max(26, workout.totalSets * 3.5));
-                    return (
-                      <div key={`cadence-${workout.workout}-${workout.dateLabel}`} style={{ border: `1px solid ${workout.intent.border}`, borderRadius: 18, padding: 14, background: theme.surfaceStrong, display: "grid", gap: 12, boxShadow: theme.shadow }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                          <div style={{ display: "grid", gap: 3 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: theme.textMuted }}>Week {workout.workout}</div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: theme.text }}>{workout.title}</div>
-                          </div>
-                          <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "6px 10px", background: workout.intent.background, color: workout.intent.color, border: `1px solid ${workout.intent.border}`, fontSize: 11, fontWeight: 700 }}>{workout.intent.label}</span>
-                        </div>
-                        <div style={{ display: "grid", gap: 8, alignItems: "end" }}>
-                          <div style={{ display: "flex", alignItems: "end", gap: 10 }}>
-                            <div style={{ flex: 1, height: 100, display: "flex", alignItems: "end" }}>
-                              <div style={{ width: "100%", height: sessionHeight, borderRadius: 16, background: `linear-gradient(180deg, ${workout.intent.background} 0%, ${workout.intent.border} 100%)`, border: `1px solid ${workout.intent.border}` }} />
-                            </div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: theme.textSoft }}>{workout.totalSets} sets</div>
-                          </div>
-                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                            {workout.focusGroups.length > 0 ? workout.focusGroups.map((group) => (
-                              <span key={`${workout.workout}-${group.group}`} style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "6px 9px", background: theme.surface, border: `1px solid ${theme.border}`, color: theme.textSoft, fontSize: 11, fontWeight: 600 }}>{group.group}</span>
-                            )) : <span style={{ fontSize: 12, color: theme.textMuted }}>Focus builds as sessions are logged.</span>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }) : <div style={{ border: `1px dashed ${theme.border}`, borderRadius: 18, padding: 18, color: theme.textSoft, background: theme.surface }}>Add a few workouts and the cadence pattern will appear here.</div>}
-                </div>
-              </div>
-            </SectionCard>
-
             <SectionCard title="What stands out" subtitle="A quick read on what changed, what is working, and where the plan is getting narrow.">
               <div style={splitSectionStyle}>
                 <div style={{ display: "grid", gap: 16 }}>
@@ -1864,37 +1715,6 @@ export default function TrainingLogDashboard() {
 
         {activeTab === "groups" && (
           <div style={sectionGridStyle}>
-            <SectionCard title="Balance map" subtitle="Volume should feel distributed with clear emphasis, not accidentally crowded into one corner.">
-              <div style={{ display: "grid", gap: 18 }}>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 130 : 150}px, 1fr))`, gap: 14, alignItems: "end" }}>
-                  {taxonomyInsights.familyDistribution.map((family) => {
-                    const tone = familyColors[family.family] ?? familyColors.Mixed;
-                    const barHeight = Math.max(20, Math.round(family.share * 1.5));
-                    return (
-                      <div key={`balance-map-${family.family}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 14, background: theme.surfaceStrong, display: "grid", gap: 12, boxShadow: theme.shadow }}>
-                        <div style={{ display: "grid", gap: 4 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.45, color: tone.color }}>{family.family}</div>
-                          <div style={{ fontSize: 22, fontWeight: 700, color: theme.text }}>{family.share}%</div>
-                        </div>
-                        <div style={{ height: 112, borderRadius: 16, background: theme.surface, border: `1px solid ${theme.border}`, padding: 10, display: "flex", alignItems: "end" }}>
-                          <div style={{ width: "100%", height: `${barHeight}%`, borderRadius: 14, background: `linear-gradient(180deg, ${tone.color}99 0%, ${tone.color} 100%)` }} />
-                        </div>
-                        <div style={{ fontSize: 12, color: theme.textSoft }}>{family.totalSets} sets · {family.groupCount} groups</div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {taxonomyInsights.emphasizedGroups.slice(0, 6).map((group) => (
-                    <span key={`emphasis-${group.family}-${group.group}`} style={{ display: "inline-flex", alignItems: "center", gap: 8, borderRadius: 999, padding: "8px 12px", background: theme.surfaceStrong, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13, fontWeight: 600 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 999, background: (familyColors[group.family] ?? familyColors.Mixed).color }} />
-                      {group.group}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </SectionCard>
-
             <SectionCard title="Balance snapshot" subtitle="Spot where volume is concentrated, where coverage drops off, and which buckets are driving the split.">
               <div style={taxonomySplitStyle}>
                 <div style={{ display: "grid", gap: 16 }}>
@@ -1962,16 +1782,12 @@ export default function TrainingLogDashboard() {
                 const workoutKey = getWorkoutKey(workout);
                 const isEditing = editingWorkoutKey === workoutKey;
                 const editRecord = editRecordLookup.get(workoutKey);
-                const workoutIntent = classifyWorkoutIntent(workout);
                 return (
                   <details key={workoutKey} style={{ border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.surface }}>
                     <summary style={{ cursor: "pointer" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-                        <div style={{ display: "inline-block" }}>
-                          <div style={{ fontWeight: 600, color: theme.text }}>Workout {workout.workout} · {workout.dateLabel}</div>
-                          <div style={{ fontSize: 14, color: theme.textSoft, marginTop: 4 }}>{workout.title}</div>
-                        </div>
-                        <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, padding: "7px 11px", background: workoutIntent.background, color: workoutIntent.color, border: `1px solid ${workoutIntent.border}`, fontSize: 12, fontWeight: 700 }}>{workoutIntent.label}</span>
+                      <div style={{ display: "inline-block" }}>
+                        <div style={{ fontWeight: 600, color: theme.text }}>Workout {workout.workout} · {workout.dateLabel}</div>
+                        <div style={{ fontSize: 14, color: theme.textSoft, marginTop: 4 }}>{workout.title}</div>
                       </div>
                     </summary>
                     <div style={{ display: "grid", gap: 18, marginTop: 18 }}>
