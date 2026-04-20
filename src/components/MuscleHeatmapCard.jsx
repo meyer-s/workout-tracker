@@ -23,32 +23,13 @@ function getWorkoutKey(workout) {
 }
 
 function parseSvgPaths(svgRaw) {
-  if (!svgRaw || typeof svgRaw !== "string") {
-    return {
-      viewBox: `0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`,
-      paths: [],
-    };
-  }
-
-  if (typeof DOMParser !== "undefined") {
-    const parsed = new DOMParser().parseFromString(svgRaw, "image/svg+xml");
-    const svgNode = parsed.querySelector("svg");
-    const viewBox = svgNode?.getAttribute("viewBox") || `0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`;
-    const paths = Array.from(parsed.querySelectorAll("path")).map((pathNode, index) => ({
-      index,
-      d: pathNode.getAttribute("d") ?? "",
-    }));
-    return {
-      viewBox,
-      paths,
-    };
-  }
-
+  if (!svgRaw || typeof svgRaw !== "string") return [];
   const pathMatches = [...svgRaw.matchAll(/<path\s+[^>]*d="([^"]+)"[^>]*>/g)];
-  return {
-    viewBox: `0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`,
-    paths: pathMatches.map((match, index) => ({ index, d: match[1] ?? "" })),
-  };
+  return pathMatches.map((match, index) => ({
+    index,
+    tag: match[0],
+    d: match[1] ?? "",
+  }));
 }
 
 function estimatePathBounds(pathData) {
@@ -128,15 +109,41 @@ function buildFamilyPathMap(paths) {
   return map;
 }
 
-function modifySelectedSvgPaths(paths, selectedPathIndexes, buildStyle) {
-  if (!Array.isArray(paths) || paths.length === 0) return [];
+function stripColorAttributes(pathTag) {
+  return pathTag
+    .replace(/\sfill="[^"]*"/gi, "")
+    .replace(/\sstroke="[^"]*"/gi, "")
+    .replace(/\sstroke-width="[^"]*"/gi, "")
+    .replace(/\sfill-opacity="[^"]*"/gi, "")
+    .replace(/\sstroke-opacity="[^"]*"/gi, "");
+}
+
+function applyPathStyle(pathTag, style) {
+  const cleanedTag = stripColorAttributes(pathTag).replace(/\s*\/?>$/, "");
+  const fill = style.fill ? ` fill="${style.fill}"` : "";
+  const stroke = style.stroke ? ` stroke="${style.stroke}"` : "";
+  const strokeWidth = style.strokeWidth !== undefined && style.strokeWidth !== null ? ` stroke-width="${style.strokeWidth}"` : "";
+  const suffix = pathTag.endsWith("/>") ? " />" : ">";
+  return `${cleanedTag}${fill}${stroke}${strokeWidth}${suffix}`;
+}
+
+function modifySelectedSvgPaths(pathTags, selectedPathIndexes, buildStyle) {
+  if (!Array.isArray(pathTags) || pathTags.length === 0) return [];
   const selectedIndexSet = new Set(selectedPathIndexes);
-  return paths.map((path) => {
-    if (!selectedIndexSet.has(path.index)) return path;
-    return {
-      ...path,
-      ...buildStyle(path),
-    };
+  return pathTags.map((pathTag, index) => {
+    if (!selectedIndexSet.has(index)) return pathTag;
+    return applyPathStyle(pathTag, buildStyle(index));
+  });
+}
+
+function applyPathStylesToSvg(svgRaw, pathTags) {
+  if (!svgRaw || typeof svgRaw !== "string") return "";
+  let pathIndex = 0;
+  const withoutXmlHeader = svgRaw.replace(/^\s*<\?xml[^>]*>\s*/i, "");
+  return withoutXmlHeader.replace(/<path\s+[^>]*d="[^"]+"[^>]*>/g, () => {
+    const nextTag = pathTags[pathIndex];
+    pathIndex += 1;
+    return nextTag ?? "";
   });
 }
 
@@ -179,7 +186,7 @@ function buildFamilySetTotals(workouts) {
 }
 
 export function MuscleHeatmapCard({ workouts, theme, familyColors, isMobile = false }) {
-  const parsedSvg = useMemo(() => parseSvgPaths(muscleMaleSvgRaw), []);
+  const parsedSvgPaths = useMemo(() => parseSvgPaths(muscleMaleSvgRaw), []);
 
   const options = useMemo(() => {
     return workouts.map((workout) => ({
@@ -203,34 +210,35 @@ export function MuscleHeatmapCard({ workouts, theme, familyColors, isMobile = fa
 
   const familyTotals = useMemo(() => buildFamilySetTotals(selectedWorkouts), [selectedWorkouts]);
   const effectiveFamilyTotals = useMemo(() => getEffectiveFamilyTotals(familyTotals), [familyTotals]);
-  const familyPathMap = useMemo(() => buildFamilyPathMap(parsedSvg.paths), [parsedSvg.paths]);
+  const familyPathMap = useMemo(() => buildFamilyPathMap(parsedSvgPaths), [parsedSvgPaths]);
 
   const peakSets = useMemo(() => {
     const values = bodyFamilies.map((family) => effectiveFamilyTotals[family] ?? 0);
     return values.length > 0 ? Math.max(...values, 0) : 0;
   }, [effectiveFamilyTotals]);
 
-  const recoloredPaths = useMemo(() => {
-    const basePaths = parsedSvg.paths.map((path) => ({
-      ...path,
-      fill: withAlpha("#232b24", 0.95),
-      stroke: withAlpha("#5f6e61", 0.35),
-      strokeWidth: 0.8,
+  const recoloredSvgMarkup = useMemo(() => {
+    const basePathTags = parsedSvgPaths.map((path) => applyPathStyle(path.tag, {
+      fill: withAlpha("#2f3a34", 0.95),
+      stroke: withAlpha("#5f6e61", 0.55),
+      strokeWidth: 0.7,
     }));
 
-    return bodyFamilies.reduce((updatedPaths, family) => {
+    const familyTintedPathTags = bodyFamilies.reduce((updatedPathTags, family) => {
       const selectedIndexes = familyPathMap[family] ?? [];
       const sets = effectiveFamilyTotals[family] ?? 0;
       const intensity = peakSets > 0 ? sets / peakSets : 0;
-      if (selectedIndexes.length === 0 || intensity <= 0) return updatedPaths;
+      if (selectedIndexes.length === 0 || intensity <= 0) return updatedPathTags;
       const baseColor = familyColors[family]?.color ?? theme.accentStrong;
-      return modifySelectedSvgPaths(updatedPaths, selectedIndexes, () => ({
-        fill: withAlpha(baseColor, Math.max(0.3, 0.2 + intensity * 0.78)),
-        stroke: withAlpha(baseColor, Math.min(0.95, 0.35 + intensity * 0.6)),
-        strokeWidth: 1.1,
+      return modifySelectedSvgPaths(updatedPathTags, selectedIndexes, () => ({
+        fill: withAlpha(baseColor, Math.max(0.45, 0.28 + intensity * 0.72)),
+        stroke: withAlpha(baseColor, Math.min(0.95, 0.45 + intensity * 0.5)),
+        strokeWidth: 0.95,
       }));
-    }, basePaths);
-  }, [effectiveFamilyTotals, familyColors, familyPathMap, parsedSvg.paths, peakSets, theme.accentStrong]);
+    }, basePathTags);
+
+    return applyPathStylesToSvg(muscleMaleSvgRaw, familyTintedPathTags);
+  }, [effectiveFamilyTotals, familyColors, familyPathMap, parsedSvgPaths, peakSets, theme.accentStrong]);
 
   const familyBreakdown = useMemo(() => {
     const presentFamilies = Object.keys(familyTotals);
@@ -267,11 +275,7 @@ export function MuscleHeatmapCard({ workouts, theme, familyColors, isMobile = fa
       </div>
 
       <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, background: theme.surfaceStrong, padding: isMobile ? 10 : 14 }}>
-        <svg viewBox={parsedSvg.viewBox} width="100%" role="img" aria-label={`Muscle heatmap for ${selectedLabel}`}>
-          {recoloredPaths.map((path) => (
-            <path key={`muscle-path-${path.index}`} d={path.d} fill={path.fill} stroke={path.stroke} strokeWidth={path.strokeWidth} />
-          ))}
-        </svg>
+        <div role="img" aria-label={`Muscle heatmap for ${selectedLabel}`} style={{ width: "100%", lineHeight: 0 }} dangerouslySetInnerHTML={{ __html: recoloredSvgMarkup }} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${isMobile ? 140 : 160}px, 1fr))`, gap: 10 }}>
