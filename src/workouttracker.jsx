@@ -34,7 +34,6 @@ import { buildDashboardData as buildAnalyticsData } from "./workoutAnalytics";
 import { dedupeWorkouts as dedupeWorkoutList, parseTrainerWorkoutNotes as parseTrainerNotes, taxonomyRules as parserTaxonomyRules } from "./workoutParser";
 import { createEmptyCircuitDraft, createWorkoutDraft, getWorkoutKey, parseWorkoutDraft } from "./workoutEditor";
 import { createBlankClient, createSeedClient, normalizeClientStore, updateClientRecord } from "./clientStore";
-import { MuscleHeatmapCard } from "./components/MuscleHeatmapCard";
 
 const DEFAULT_CALORIE_THRESHOLD_PERCENT = 40;
 const DEFAULT_ZONE_THRESHOLD_PERCENT = 90;
@@ -2933,9 +2932,6 @@ export default function TrainingLogDashboard() {
 
         {activeTab === "workouts" && (
           <div style={{ display: "grid", gap: 18 }}>
-            <SectionCard title="Muscle heatmap" subtitle="See where set volume is concentrated across the body, with an option to inspect each workout individually.">
-              <MuscleHeatmapCard workouts={filteredWorkouts} theme={theme} familyColors={familyColors} isMobile={isMobile} />
-            </SectionCard>
             <SectionCard title="Structured workout log" subtitle="Review, edit, and refine workouts directly from the log without overwriting the original seed data.">
               <div style={{ display: "grid", gap: 18 }}>
                 {workoutEditError ? <div style={{ border: `1px solid ${insightTones.warning.border}`, background: insightTones.warning.background, color: insightTones.warning.accent, borderRadius: 12, padding: 12 }}>{workoutEditError}</div> : null}
@@ -3047,9 +3043,6 @@ export default function TrainingLogDashboard() {
 
         {activeTab === "index" && (
           <SectionCard title="Exercise index" subtitle="Customize each exercise's primary and secondary muscle impact for this client.">
-            <div style={{ border: `1px solid ${theme.border}`, borderRadius: 12, padding: 12, background: theme.surfaceStrong, color: theme.textSoft, fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
-              Use <strong style={{ color: theme.text }}>Primary groups</strong> for full impact and <strong style={{ color: theme.text }}>Secondary groups</strong> for partial impact in the heatmap. Hold <strong style={{ color: theme.text }}>⌘</strong> (Mac) while clicking to multi-select.
-            </div>
             <div style={{ maxHeight: 720, overflow: "auto", paddingRight: 4 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
                 {exerciseIndex
