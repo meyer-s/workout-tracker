@@ -4,7 +4,7 @@ export const taxonomyRules = [
   { family: "Core", group: "Core", keywords: ["plank", "crunch", "deadbug", "hollow", "sit up", "russian twist", "twister", "leg lift", "l sit", "log roll", "reverse crunch", "toe touch", "flutter", "v up", "tornado", "stir the pot", "evil wheel", "bike crunch", "supermen", "knee tuck", "starfish", "core hackey", "swiss ball roll out"] },
   { family: "Arms", group: "Forearms & Grip", keywords: ["forearm", "pronation", "suitcase carr", "bottoms up hold", "palof"] },
   { family: "Arms", group: "Biceps", keywords: ["curl", "preacher", "zotman", "spider", "gunslinger", "swimmer"] },
-  { family: "Arms", group: "Triceps", keywords: ["french press", "kickback", "diamond p up", "close grip press"] },
+  { family: "Arms", group: "Triceps", keywords: ["french press", "kickback", "diamond p up", "close grip press", "skull crusher", "tricep", "blast off"] },
   { family: "Upper Body", group: "Back", keywords: ["row", "lat pull", "pull down", "pull over", "face pull", "dead hang", "high row"] },
   { family: "Upper Body", group: "Shoulders", keywords: ["thruster", "halo", "z press", "waiter press", "oh press", "iron cross", "scaption", "saxon", "shins shoulders sky", "at raises"] },
   { family: "Upper Body", group: "Chest", keywords: ["press", "fly", "p up", "push up", "decline", "dragon press", "chest press"] },
@@ -34,7 +34,7 @@ export function formatDateLabel(dateText) {
 
 export function parseLoadValue(loadText) {
   if (!loadText) return null;
-  const poundsMatch = loadText.match(/(\d+(?:\.\d+)?)\s*lb[s]?/i);
+  const poundsMatch = loadText.match(/(\d+(?:\.\d+)?)\s*(?:lb[s]?|lns)\b/i);
   if (poundsMatch) return Number(poundsMatch[1]);
   const levelMatch = loadText.match(/lvl\s*(\d+(?:\.\d+)?)/i);
   return levelMatch ? Number(levelMatch[1]) : null;
@@ -135,7 +135,8 @@ export function deriveMovementPattern(exerciseName, taxonomy) {
 }
 
 export function stripBulletPrefix(value) {
-  return value.replace(/^[-*•]\s+/, "").replace(/^\d+[.)]\s+/, "").trim();
+  // Strip bullet dash with or without a space after it (-Exercise or - Exercise or -20 Exercise)
+  return value.replace(/^[-*•]\s*/, "").replace(/^\d+[.)]\s+/, "").trim();
 }
 
 export function normalizeDateInput(value) {
@@ -157,7 +158,13 @@ export function normalizeDateInput(value) {
 
 export function isLikelyCircuitHeader(value) {
   const normalized = normalizeText(value.replace(/:$/, ""));
-  return value.endsWith(":") || /^(?:block|circuit|section|series|pairing|tri set|giant set|warm up|warmup|cool down|cooldown|core|super set|superset|drop set|accessory|bonus|finisher|strength|mobility|conditioning|upper|lower)/.test(normalized);
+  if (value.endsWith(":")) return true;
+  if (/^(?:block|circuit|section|series|pairing|tri set|giant set|warm up|warmup|cool down|cooldown|core|super set|superset|drop set|accessory|bonus|abdominal|abs |progressive overload|finisher|strength|mobility|conditioning|upper|lower)/.test(normalized)) return true;
+  // "2 Round Circuit", "3 Round Circuit", etc.
+  if (/^\d+\s+round/.test(normalized)) return true;
+  // All-caps section headers like "ABDOMINALS / CORE" or "ABDOMINALS & CORE"
+  if (value.trim() === value.trim().toUpperCase() && /[A-Z]{3}/.test(value) && !value.includes("@")) return true;
+  return false;
 }
 
 export function extractDateFromLine(value) {
@@ -208,6 +215,7 @@ export function normalizeTrainerExerciseLine(value) {
   }
 
   normalized = normalized.replace(/\bbody ?weight\b/gi, "BW");
+  normalized = normalized.replace(/(\d+)\s*lns\b/gi, "$1lbs"); // fix common typo
   normalized = normalized.replace(/(\b(?:\d+(?:\.\d+)?\s*lb[s]?|BW|lvl\s*\d+|Red|Blue|Green|Purple|Black|Yellow|Orange|Pink(?:\/[A-Za-z]+)?)\b[^|@;]*?)\s+[xX]\s*(?=\d)/g, "$1 @ ");
   normalized = normalized.replace(/(\b(?:\d+(?:\.\d+)?\s*lb[s]?|BW|lvl\s*\d+|Red|Blue|Green|Purple|Black|Yellow|Orange|Pink(?:\/[A-Za-z]+)?)\b)\s+(\d+)\s*[xX]\s*(\d+(?:\/\d+)?)/gi, (_, load, sets, reps) => {
     const safeSetCount = Math.min(Number(sets), 8);
@@ -234,7 +242,8 @@ export function extractWorkoutMetadataFromLine(value) {
     inferredTitle = line
       .replace(/^(?:workout|session|day)\s*#?\s*\d+\b/i, "")
       .replace(/[·\-|]/g, " ")
-      .replace(/\b\d{1,2}[\/\-.]\d{1,2}\b/, "")
+      .replace(/\b\d{1,2}[\/\-..]\d{1,2}\b/, "")
+      .replace(/\(\s*\)/g, "") // remove empty parens left after stripping date
       .trim();
   }
 
@@ -317,68 +326,124 @@ export function dedupeWorkouts(workoutList) {
   return sortWorkouts([...byKey.values()]);
 }
 
+export function isVariationLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  // Has @ separator = a load+reps line
+  if (trimmed.includes("@")) return true;
+  // Starts with a weight, BW, Lvl, or a resistance band color
+  if (/^(\d+(?:\.\d+)?\s*(?:lb[s]?|lns|kg)\b|BW\b|Lvl\s*\d+|Red\b|Blue\b|Green\b|Purple\b|Black\b|Yellow\b|Orange\b|Pink\b)/i.test(trimmed)) return true;
+  return false;
+}
+
 export function parseTrainerWorkoutBlock(blockText, fallbackWorkoutNumber) {
   const rawLines = blockText.split(/\r?\n/).map((line) => line.trimEnd());
-  const mergedLines = [];
-  rawLines.forEach((line) => {
-    const trimmed = line.trim();
-    if (!trimmed) return;
-    if (mergedLines.length > 0 && isLikelyContinuationLine(trimmed)) {
-      mergedLines[mergedLines.length - 1] = `${mergedLines[mergedLines.length - 1]} ${stripBulletPrefix(trimmed)}`.replace(/\s+/g, " ").trim();
-      return;
-    }
-    mergedLines.push(trimmed);
-  });
-  const lines = mergedLines;
+  const lines = rawLines.map((l) => l.trim()).filter(Boolean);
+
   let workoutNumber = fallbackWorkoutNumber;
   let date = "";
   let title = "";
   const circuits = [];
   let currentCircuit = null;
+  // Multi-line exercise grouping state
+  let pendingExerciseName = null;
+  let pendingVariations = [];
+
   const ensureCircuit = (name = "General") => {
     if (!currentCircuit || currentCircuit.name !== name) {
       currentCircuit = { name, items: [] };
       circuits.push(currentCircuit);
     }
   };
-  lines.forEach((rawLine) => {
-    const line = rawLine.trim();
+
+  const flushPendingExercise = () => {
+    if (pendingExerciseName === null) return;
+    if (!currentCircuit) ensureCircuit();
+    const combined =
+      pendingVariations.length > 0
+        ? `${pendingExerciseName} — ${pendingVariations.join(" | ")}`
+        : pendingExerciseName;
+    currentCircuit.items.push(combined);
+    pendingExerciseName = null;
+    pendingVariations = [];
+  };
+
+  for (const line of lines) {
+    // Skip pure separator lines
+    if (/^[_\-=]{3,}$/.test(line)) continue;
+
+    // Workout-level metadata
     const metadata = extractWorkoutMetadataFromLine(line);
     if (metadata.workoutNumber !== null) workoutNumber = metadata.workoutNumber;
     if (metadata.date && !date) date = metadata.date;
     if (metadata.title && !title) title = metadata.title;
-    if (metadata.hasMetadata && /^(?:workout|session|day|title|date)\b/i.test(line)) return;
+    if (metadata.hasMetadata && /^(?:workout|session|day|title|date)\b/i.test(line)) continue;
 
     const explicitDateMatch = line.match(/^Date\s*:?\s*(.+)$/i);
-    if (explicitDateMatch) {
-      date = normalizeDateInput(explicitDateMatch[1]);
-      return;
-    }
+    if (explicitDateMatch) { date = normalizeDateInput(explicitDateMatch[1]); continue; }
     const explicitTitleMatch = line.match(/^Title\s*:?\s*(.+)$/i);
-    if (explicitTitleMatch) {
-      title = explicitTitleMatch[1].trim();
-      return;
-    }
+    if (explicitTitleMatch) { title = explicitTitleMatch[1].trim(); continue; }
+
+    // Circuit / section header
     if (isLikelyCircuitHeader(line)) {
+      flushPendingExercise();
       ensureCircuit(line.replace(/:$/, "").trim());
-      return;
+      continue;
     }
-    if (/^[-*•]\s+/.test(line) || /^\d+[.)]\s+/.test(line) || isLikelyExerciseLine(line)) {
-      ensureCircuit();
-      currentCircuit.items.push(normalizeTrainerExerciseLine(line));
-      return;
+
+    // Bullet line = start of a new exercise (name is everything after the bullet)
+    if (/^[-*•]/.test(line)) {
+      const name = stripBulletPrefix(line);
+      // If the stripped name looks like a variation (e.g. drop-set bullets "-40lbs @ 8"),
+      // attach it to the current pending exercise rather than starting a new one
+      if (isVariationLine(name)) {
+        if (pendingExerciseName !== null) {
+          pendingVariations.push(name);
+        } else {
+          if (!currentCircuit) ensureCircuit();
+          currentCircuit.items.push(name);
+        }
+        continue;
+      }
+      flushPendingExercise();
+      pendingExerciseName = name;
+      pendingVariations = [];
+      continue;
     }
-    if (!title) {
-      title = line;
-      return;
+
+    // Variation line (has @ or starts with a load/band-color indicator)
+    if (isVariationLine(line)) {
+      if (pendingExerciseName !== null) {
+        pendingVariations.push(line);
+      } else {
+        // No exercise context — store as standalone item
+        ensureCircuit();
+        currentCircuit.items.push(line);
+      }
+      continue;
     }
+
+    // Anything else
+    flushPendingExercise();
+    // An unbulleted line that looks like an exercise name (e.g. "OH Press Drop Set",
+    // "Lat Pull Downs (Wide Grip)") — start it as a new pending exercise so that
+    // any following bulleted variation lines attach to it correctly.
+    if (isLikelyExerciseLine(line) && !isVariationLine(line)) {
+      pendingExerciseName = line;
+      pendingVariations = [];
+      continue;
+    }
+    if (!title) { title = line; continue; }
     if (currentCircuit?.items.length) {
-      currentCircuit.items[currentCircuit.items.length - 1] = `${currentCircuit.items[currentCircuit.items.length - 1]} ${line}`.replace(/\s+/g, " ").trim();
-      return;
+      currentCircuit.items[currentCircuit.items.length - 1] =
+        `${currentCircuit.items[currentCircuit.items.length - 1]} ${line}`.replace(/\s+/g, " ").trim();
+      continue;
     }
     ensureCircuit();
-    currentCircuit.items.push(normalizeTrainerExerciseLine(line));
-  });
+    currentCircuit.items.push(line);
+  }
+
+  flushPendingExercise();
   const derivedTitle = title || deriveWorkoutTitle(circuits);
   const workout = sanitizeWorkout({ workout: workoutNumber, date, title: derivedTitle, circuits }, fallbackWorkoutNumber);
   const errors = [];

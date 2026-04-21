@@ -121,7 +121,7 @@ const workouts = [
         items: [
           "Bent over Uni Rev DB Flies — 8lbs @ 20/20, 20/20 | 10lbs @ 20/20, 20/20",
           "Kickstand RDLs — 15lbs @ 20/20, 8/8 | 20lbs @ 20/20",
-          "Concentration Curls — 20lbs @ 15/15 | 25lbs @ 15/10, 14/14",
+          "Concentration Curls — 15lbs @ — | 20lbs @ 15/15 | 25lbs @ 15/10, 14/14",
           "Swiss Ham Bridge — Bi @ 20, 20",
         ],
       },
@@ -135,7 +135,7 @@ const workouts = [
       {
         name: "Strength Circuit #1 (2x)",
         items: [
-          "SDHP — 35lbs @ 20, 20 | HR goals: 35 reps @ 78 HR / 25 reps @ 85 HR",
+          "SDHP — 35lbs @ 20, 20 | 35lbs HR goals: 35 reps @ 78 HR / 25 reps @ 85 HR",
           "Halos — 35lbs @ 20, 16",
           "Glute Medius Hip Thrust — Green @ 20/20 | Blue @ 20/20 | Black @ 25/25",
           "KB Curls — 35lbs @ 25, 20",
@@ -144,8 +144,7 @@ const workouts = [
       {
         name: "Strength Circuit #2",
         items: [
-          "Swing Technique — notes logged",
-          "35lbs double arm @ 21 | single @ 20/21 | alt arm @ 50 (84 HR)",
+          "Swing Technique — 35lbs double arm @ 21 | 35lbs single @ 20/21 | 35lbs alt arm @ 50 (84 HR)",
           "Banded Flies — Red @ 25 | Blue @ 20 | Purple close @ 20 | Purple far @ 20",
           "French Press — 20lbs @ 20 | 25lbs @ 20 | 35lbs @ 20, 20",
           "DB Hamstring Curls — 8lbs @ 20/20 | 10lbs @ 20/20 | 15lbs @ 20/20",
@@ -345,18 +344,18 @@ const workouts = [
         items: [
           "Japanese Stand Up — BW @ 20 | 15lbs @ 20 | 20lbs @ 20 | 30lbs @ 20",
           "Dragon Press — 15lbs @ 20 | 20lbs @ 20 | 25lbs @ 20 | 30lbs @ 12",
-          "Hollow Hold Flies — 15lbs @ 20 | 20lbs @ 20 | 25lbs @ 11",
+          "Hollow Hold Flies — 12lbs @ — | 15lbs @ 20 | 20lbs @ 20 | 25lbs @ 11",
           "Book Opener Hip Raise — 15lbs @ 20/20 | 20lbs @ 20/20 | 25lbs @ 20/20 | 30lbs @ 16/16",
         ],
       },
       {
         name: "Strength Circuit #2 (2x)",
         items: [
-          "Good Morning — 30lb BB @ 20 | 50lb BB @ 20 | 50lb BB + pauses @ 20",
-          "Clean Technique",
+          "Good Morning — 30lb BB @ 20 | 50lb BB @ 20 | 50lb BB w/ 2 sec pause @ 20 | 50lb BB w/ 4 sec pause @ 20",
+          "Clean Technique — notes @ —",
           "Clean — 35lbs @ 10/10",
-          "Swiss Ball Back Extension — BW @ 20 with variations",
-          "Decline Press — 20lbs @ 22 | 25lbs @ 20 | 30lbs @ 20",
+          "Swiss Ball Back Extension — BW, hand by waist @ 20 | BW, hands behind head @ 20 | BW, hands behind head & 2 sec pause @ —",
+          "Decline Press — 15lbs @ — | 20lbs @ 22 | 25lbs @ 20 | 30lbs @ 20",
         ],
       },
       {
@@ -426,9 +425,9 @@ const workouts = [
         name: "Drop Sets & Accessory Work",
         items: [
           "OH Press Drop Set — 40lbs @ 0 | 35lbs @ 8 | 30lbs @ 13 | 25lbs @ 8 | 20lbs @ 11 | 15lbs @ 8 | 12lbs @ 20",
-          "DB Curl Drop Set — 30lbs @ 4, 10 | 25lbs @ 6, 4 | 20lbs @ 7, 7 | 15lbs @ 7, 7 | 10lbs @ 20, 20",
-          "DB Incline Flies — 25lbs @ 13 | 20lbs @ 20",
-          "Lat Pull Downs (Wide Grip) — lvl 8 @ 4, 2 | lvl 7 @ 6, 7 | lvl 6 @ 5, 6 | lvl 5 @ 10, 11 | lvl 4 @ 15, 6 | lvl 3 @ 20, 20",
+          "DB Curl Drop Set — 30lbs @ 4, 10 | 25lbs @ 6, 4 | 20lbs @ 7, 7 | 15lbs @ 7, 7 | 10lbs @ 20, 20 | 8lbs @ — | 5lbs @ —",
+          "DB Incline Flies (1 lvl) — 25lbs @ 13 | 20lbs @ 20 | 15lbs @ — | 12lbs @ — | 10lbs @ — | 8lbs @ — | 5lbs @ —",
+          "Lat Pull Downs (Wide Grip) — lvl 9 (135lbs) @ — | lvl 8 (120lbs) @ 4, 2 | lvl 7 (105lbs) @ 6, 7 | lvl 6 (90lbs) @ 5, 6 | lvl 5 (75lbs) @ 10, 11 | lvl 4 (60lbs) @ 15, 6 | lvl 3 (45lbs) @ 20, 20 | lvl 2 (30lbs) @ — | lvl 1 (15lbs) @ —",
         ],
       },
       {
@@ -441,26 +440,991 @@ const workouts = [
       },
     ],
   },
+  {
+    workout: 13,
+    date: "4/13",
+    title: "Thrusters + Forearm & Carry Strength",
+    circuits: [
+      {
+        name: "Strength Circuit #1 (2x)",
+        items: [
+          "Thrusters — 15lbs @ 20, 20 | 20lbs, 4 tiers @ 22 | 25lbs, 4 tiers @ 20 | 30lbs, 4 tiers @ 20",
+          "Bent Over Rows — 20lbs @ 20/20, 20/20 | 25lbs @ 21/22, 20/20 | 30lbs @ 20/20, 20/20",
+          "Palof Press — Red Red @ 20/20, 20/20 | Blue Blue @ 20/20, 20/20 | Purple, Purple @ 20/20, 15/20",
+          "Glute Kick Backs — Black @ 20/20, 20/20 | 10lbs @ 20/20 | 15lbs @ 20/20 | 20lbs @ 20/20, 0/20",
+        ],
+      },
+      {
+        name: "Strength Circuit #2 (2x)",
+        items: [
+          "Gunslinger Curls — 35lbs @ 24/22 | 45lbs @ 20/20",
+          "Scapular P-ups — Bi BW @ 20 | Uni BW @ —",
+          "Forearm Curls — 20lbs @ 20/20, 20/20 | 25lbs @ 20/20",
+          "Forearm Extensions — 8lbs @ 20/20, 20/20 | 10lbs @ 20/20",
+          "Suitcase Carries — 55lbs @ 36/30 | 60lbs @ —",
+        ],
+      },
+      {
+        name: "Abdominals & Core",
+        items: [
+          "Deadbugs @ 21",
+          "Evil Wheel assessment @ —",
+          "Plank @ 2:02",
+        ],
+      },
+    ],
+  },
+  {
+    workout: 14,
+    date: "4/16",
+    title: "RDL Progression + Step Ups",
+    circuits: [
+      {
+        name: "Strength Circuit #1 (2x)",
+        items: [
+          "RDL's — 20lbs @ 20 | 25lbs @ 20 | 30lbs @ — | 35lbs @ 20 | 45lbs @ 21 | 55lbs @ 20 | 65lbs @ 7",
+          "Incline Flies (1 lvl) — 15lbs @ 20 | 20lbs @ 20 | 25lbs @ 20, 13 | 35lbs @ 18, 13 | 40lbs @ —",
+          "Rev Flies — Yellow @ 20 | Green @ 20 | Red @ 20, 20 | Blue @ 20 (mod rom)",
+          "Calve Raises — Bi @ 21 | Uni @ 20/20 | Uni, 20lbs @ 20/20 | Uni, 25lbs @ 20/20 | Uni, 35lbs @ 20/20, 20/20 | Uni, 45lbs @ —",
+        ],
+      },
+      {
+        name: "Strength Circuit #2",
+        items: [
+          "Step ups — 5 tiers, BW @ — | 6 tiers, BW @ 20/20 | 6 tiers, 10lbs contra @ 20/20 | 6 tiers, 15lbs contra @ 20/20 | 6 tiers, 20lbs contra @ 20/20 | 6 tiers, 25lbs contra @ 20/20 | 6 tiers, 30lbs contra @ 20/20",
+          "Hammer Curls — 12lbs @ — | 15lbs @ 20 | 20lbs @ 20, 20 | 25lbs (butt against) @ 20 | 30lbs (butt against) @ 8",
+          "Bench Dips — Bent @ — | Straight @ 20, 20 | Legs elevated @ 10",
+          "Seated Abduction — Blue @ 20 | Black @ 20 | Black & Yellow @ 20 | Black & Green @ 20, 20",
+        ],
+      },
+      {
+        name: "Abdominals & Core",
+        items: [
+          "Swiss ball pass @ 14",
+          "Swiss ball sideways v-ups @ 20/20",
+          "Sit up mid way hold — Lvl 1 @ 35",
+        ],
+      },
+    ],
+  },
+  {
+    workout: 15,
+    date: "4/20",
+    title: "Wall Squat + Machine Strength + Core",
+    circuits: [
+      {
+        name: "Strength Circuit #1 (2x)",
+        items: [
+          "Face the wall Squat — BW @ 20, 20 | 35lb KB, no floor touch @ 20 | 35lb KB, floor touch @ 20 | 45lb KB, no floor touch @ 20 | 45lb KB, floor touch @ 20",
+          "Lat Pull Downs — 75lbs (lvl 5) @ 20 | 90lbs (lvl 6) @ 18 | 105lbs (lvl 7) @ 20 | 120lbs (lvl 8) @ 13, 11",
+          "Machine Flies — 45lbs (lvl 3) @ — | 60lbs (lvl 4) @ — | 75lbs (lvl 5) @ 20 | 90lbs (lvl 6) @ 17 | 105lbs (lvl 7) @ 20 | 120lbs (lvl 8) @ 16 | 135lbs (lvl 9) @ 20 | 145lbs (lvl 9 & both weight additions) @ 16.5",
+          "Hip Thrust — BW @ 20 | 15lbs @ 20 | 20lbs @ 20 | 30lbs @ 19 | 40lbs @ 20",
+        ],
+      },
+      {
+        name: "Strength Circuit #2 (2x)",
+        items: [
+          "1 legged RDL — BW @ 20/20 | 10lbs @ 20/20 | 15lbs @ 20/20 | 20lbs @ 20/20 | 25lbs @ 20/20, 20/20",
+          "Skull Crusher — 12lbs @ — | 15lbs @ 20, 20 | 20lbs @ 21 | 25lbs @ 12, 11",
+          "Banded Biceps — Red @ 20 | Blue @ 20 | Purple @ 20 | Purple & Yellow @ 19, 17",
+          "Blast Offs (Halteres) — 20lbs @ 19 | 25lbs @ —",
+        ],
+      },
+      {
+        name: "Abdominals & Core",
+        items: [
+          "Swiss ball plank @ 1:17",
+          "Decline Bench Sit ups — Lvl 1 @ 21 | Lvl 2 @ 20",
+        ],
+      },
+      {
+        name: "Core Endurance (2 rounds)",
+        items: [
+          "Alt Toe Touch @ 20",
+          "Bike Crunch @ 20",
+          "IT Band Crunch @ 20/20",
+        ],
+      },
+    ],
+  },
 ];
 
 const TRAINER_IMPORT_STORAGE_KEY = "workout-tracker-imported-workouts-v1";
 const EDITED_WORKOUT_STORAGE_KEY = "workout-tracker-edited-workouts-v1";
 const CLIENT_STORE_STORAGE_KEY = "workout-tracker-clients-v1";
-const trainerNotesExample = `Workout 13 · 4/12
-Title: Trainer-written session title
+// Raw trainer notes — the original source text for all seed workouts.
+// Stored on the seed client for audit / re-import validation.
+const trainerNotesExample = `WORKOUT # 1 (2/26)
 
-Strength Circuit #1 (2x):
-- Thrusters — 15lbs @ 20, 20 | 20lbs @ 16
-- Bent Over Rows — 20lbs @ 20/20, 20/20 | 25lbs @ 21/22, 20/20
-- Palof Press — Red/Red @ 20/20, 20/20
+Strength Circuit # 1 (2x)
+-Thrusters
+15lbs @ 20, 20
+20lbs, 4 tiers @ 22
+25lbs, 4 tiers @ 16
+-Bent Over Rows
+20lbs @ 20/20, 20/20
+25lbs @ 21/22, 20/20
+-Palof Press
+Red Red @ 20/20, 20/20
+Blue Blue @ 20/20, 20/20
+-Glute Kick Backs
+Black @ 20/20, 20/20
+10lbs @ 20/20
+15lbs @ 13/20
 
-Strength Circuit #2 (2x):
-- Gunslinger Curls — 35lbs @ 24/22
-- Suitcase Carries — 55lbs @ 36/30 | 60lbs @ —
+Strength Circuit # 2 (2x)
+-Gunslinger Curls
+35lbs @ 24/22,
+-Scapular P-ups
+Bi BW @ 20
+Uni BW @
+-Forearm Curls
+20lbs @ 20/20, 20/20
+25lbs @
+-Forearm Extensions
+8lbs @ 20/20, 20/20
+10lbs @
+-Suitcase Carries
+55lbs @ 36/30,
+60lbs @
 
-Core:
-- Deadbugs @ 21
-- Plank @ 2:02`;
+ABDOMINALS & CORE
+
+Progressive Overload
+
+Deadbugs @ 21
+
+Evil Wheel assessment @
+
+Plank @ 2:02
+
+__________
+__________
+__________
+
+
+WORKOUT # 4 (3/9)
+
+Strength Circuit # 1 (2x)
+-Vargas Squats
+BW & Blue @ 20
+BW & Black @ 20
+15lbs & Black @ 20
+20lbs & Black @ 20
+-Hip Flexion
+Green & 5 @ 20/20
+Green & 6 @ 20/20
+Blue & 5 @ 20/20
+Blue & 6 @ 20/20
+-Machine Rows
+90lbs (lvl 6) @ 20
+105lbs (lvl 7) @ 20
+120lbs (lvl 8) @ 20
+125lbs (lvl 8 & add on) @ 20
+-Machine Chest Press
+90lbs (lvl 6) @ 20
+105lbs (lvl 7) @ 20
+120lbs (lvl 8) @ 20
+125lbs (lvl 8 & add on) @ 20
+
+Strength Circuit # 2 (2x)
+-Bent over Uni Rev DB Flies
+8lbs @ 20/20, 20/20
+10lbs @ 20/20, 20/20
+-Kickstand RDLs
+15lbs @ 20/20, 8/8
+20lbs @ 20/20
+-Concentration Curls
+15lbs @
+20lbs @ 15/15
+25lbs @ 15/10, 14/14
+-Swiss Ham Bridge
+Bi @ 20, 20
+
+__________
+__________
+__________
+
+
+WORKOUT # 5 (3/12)
+
+Strength Circuit # 1 (2x)
+-SDHP
+35lbs @ 20, 20
+35lbs HR Goals @ 35 reps, 78 HR // 25reps, 85 HR
+-Halos
+35lbs @ 20, 16
+-Glute Medius Hip Thrust
+Green @ 20/20
+Blue @ 20/20
+Black @ 25/25
+-KB Curls
+35lbs @ 25, 20
+
+Strength Circuit # 2
+-Swing Technique
+Notes @
+35lbs double arm @ 21
+35lbs single @ 20/21
+35lbs alt arm @ 50 (84HR)
+-Banded Flies
+Red @ 25
+Blue @ 20
+Purple close @ 20
+Purple far @ 20
+-French Press
+20lbs @ 20
+25lbs @ 20
+35lbs @ 20, 20
+-DB Hamstring Curls
+8lbs @ 20/20
+10lbs @ 20/20
+15lbs @ 20/20
+
+Strength Super Set (2x)
+-Chest Support Rows
+25lbs @ 10
+-Waiter Press
+35lbs @ 12/20
+
+ABDOMINALS / CORE
+
+-Side Plank
+BW @ 1:05/1:05
+-Hollow Hold
+Hands over head @ 32
+-Evil Wheel
+Small @ 20
+Med @ 20
+Large @
+
+Endurance
+
+2 Round Circuit
+-15 Bike Crunches
+-15 Short Crunches
+-15 Plank Twisters
+
+__________
+__________
+__________
+
+
+WORKOUT # 6 (3/16)
+
+Strength Circuit # 1 (2x)
+-Bulgarians
+4 tiers, Dowel BW @ 20/20, 14/14
+4 tiers, no dowel, BW @
+-Reverse Grip Press (Flat)
+20lbs @ 20
+25lbs @ 20
+30lbs @ 20, 20
+35lbs @
+-Reverse Grip Lat Pull
+90lbs (lvl 6) @
+105lbs (lvl 7) @ 20, 20
+120lbs (lvl 8) @ 12, 12
+135lbs (lvl 9) @
+-Clamshells
+Blue @ 23/23
+Black @ 20/20
+Black & Yellow @ 20/20
+Black & Green @ 20/20
+
+Strength Circuit # 2 (2x)
+-KB Clean Technique
+-Banded Straight Arm Lat Pulls
+Red @ 20
+Blue @ 20
+Purple @ 20, 20
+-Banded Dowel Biceps
+Purple @ 20, 15
+Purple & yellow @ 8
+-Z Press
+20lbs @ 20
+25lbs @ 18
+-Froggers
+BW @ 30
+20lbs @ 20
+40lbs (20lbs/side) @
+
+ABDOMINALS / CORE
+
+Core Progressive Overload
+
+-Plank Twisters
+BW @ 20
+
+-Russian Twist
+BW, feet down @ 20
+BW, feet up @ 20
+
+-Swiss Ball Sit Ups (Foot anchor creativity) (BB Anchor)
+BW lvl 1 @ 20
+BW lvl 2 (arms crossed) @ 20
+
+Core endurance
+
+Core Ramp Count Down (#9)
+-Knee tucks 20, 15, 10, 5
+-Crunches 20, 15, 10, 5
+-Supermen 20, 15, 10, 5
+
+__________
+__________
+__________
+
+
+WORKOUT # 6 (3/18)
+
+Strength Circuit # 1 (2x)
+-Glute Focused Step Ups
+6 tiers, BW @ 20/20
+6 tiers, 10lbs contra @ 20/20
+6 tiers, 15lb contra @ 20/20
+6 tiers, 20lb contra @ 20/20
+-QL Side Bend
+Red @ 20/20
+Blue @ 20/20
+Purple @ 20/20, 20/20
+-Lat Pull Over
+Flat, 15lbs @ 20
+Thoracic, 20lbs @ 21
+Thoracic 35lbs @ 20, 20
+-Swimmer Curls
+15lbs @ 21
+20lbs @ 20
+25lbs @ 15
+
+Strength Circuit # 2 (2x)
+-Snatches
+20lbs @ 18/18, 16/15
+25lbs @
+-Uni Glute Act Fly
+15lbs @ 19/19
+20lbs @ 20/20, 20/20
+25lbs @
+-Pronation curls (dowel)
+Red @ 20
+Blue @ 20, 11
+Blue, wide @ 9
+-Donkey Kicks
+Green @ 30/30
+Blue @ 20/20
+
+ABDOMINALS / CORE
+
+Progressive Overload
+
+-Plank army crawls
+BW lvl 1 @ 10
+
+-Swiss Ball Tornados @
+
+-Stir The Pot @
+
+-Spetznaz P-up @
+
+Endurance Core
+
+2 Round Circuit
+-15/15 IT Band Crunches
+-15 Full Sit Ups
+-15 Knee Tucks
+-15 Leg Lifts
+
+__________
+__________
+__________
+
+
+WORKOUT # 7 (3/23)
+
+Strength Circuit # 1 (2x)
+-Split Squats
+BW & Dowel @ 20/20
+BW @ 18/18
+10lbs/side @ 20/20
+15lbs/side @ 20/20
+-Zotman Curls (butt against wall)
+15lbs @ 20, 18
+20lbs @ 20,
+-Shrugs
+40lbs @ 22
+50lbs @ 21
+60lbs @ 20, 20
+-Jane Fondas
+BW @ 30/30
+Yellow @ 25/25
+Green @ 25/25 G
+
+Strength Circuit # 2 (2x)
+-Pistols
+Bench & green @
+Bench & Yellow @
+Bench & BW @ 13/20 (elliptical & had a fall so left was not great) (advance right to 6 tiers)
+-Close Grip Press (Flat)
+20lbs @ 30
+25lbs @ 25
+30lbs @ 30
+40lbs @ 20
+-Saxon Side Band
+8lbs @ 20/20
+10lbs @ 20/20
+15lbs @ 20/20
+Red @
+Blue @
+-Preacher Curl (Uni)
+15lbs @ 20/20
+20lbs@ 18/18
+
+ABDOMINALS / CORE
+
+Progressive Overload
+
+-Leg Lifts @ 12
+
+__________
+__________
+__________
+
+
+WORKOUT # 8 (3/26)
+
+Strength Circuit # 1 (2x)
+-Spanish Squats (Purple)
+BW @ 20
+10lb bow tie @ 20
+15lb bow tie @ 20
+-Banded French Press
+Blue close @ 20
+Purple @ 20
+Purple & Yellow @ 20
+Purple & Green @ 19
+-Bi Lateral Rev grip Row
+20lbs @ 20
+25lbs @ 20
+30lbs @ 20, 20
+-Uni Calve Bounce
+BW @ 75/74
+10lbs/side @ 50/50
+15lbs/side @ 50/50, 50/50
+20lbs/side @
+
+Strength Circuit # 2 (2x)
+-Uni OH Squat
+10lbs 5 tiers @ 10/10
+10lbs, 4 tiers @ 10/10
+15lbs, 5 tiers @ 10/10
+15lbs, 4 tiers @ 10/10
+-HR P-ups (handles) @ 10, 6
+-Face Pulls
+Green @ 20
+Red @ 20
+Blue @ 20,
+Blue, farther @ 20
+Purple @
+-Donkey Raise
+BW @ 30/30
+8lbs @ 20/20
+10lbs @ 20/20, 20/20
+15lbs @
+
+ABDOMINALS / CORE
+
+Progressive Overload
+
+-V-Ups
+Lvl 1 @ 18
+
+Core Endurance
+
+2 Round Circuit
+-15/15 IT Band Crunches
+-15 Full Sit Ups
+-15 Knee Tucks
+
+__________
+__________
+__________
+
+
+WORKOUT # 9 (3/31)
+
+Strength Circuit # 1
+-Pulsing Squats
+BW, 4 tiers @ 20
+10lb bow tie, 4 tiers @ 20
+15lb bow tie, 4 tiers @ 20
+20lb bow tie, 4 tiers @ 20
+-Hammer Curl to Sup
+15lbs @ 20
+20lbs @ 18 (cluster set) (supination drops past 90)
+25lbs @ 18, 9
+-Scaptions
+8lbs @ 20
+10lbs @ 20
+15lbs butt against wall @ 18, 10
+-Rev Hypers
+Swiss ball on bench @ 25, 25
+Incline Bench @
+
+Strength Circuit # 2 (2x)
+-Shins, Shoulders, Sky
+15lbs @ 20
+20lbs @ 20, 14
+-Swiss Ball Rebound P-Up
+BW @ 20, 17
+Back pack, 15lbs @
+-Banded High Rows (halfway between lat pull down and reg row)
+Purple @ 20
+Purple & Yellow @ 22
+Purple & Green @ 20, 20
+-Swiss Ball Roll Outs
+Bi @ 20, 20
+Uni @ 15/15
+
+Strength Super Set (2x)
+-Spider Curls
+20lbs @ 12, 6
+-Chest Supported Tri Kickbacks
+10lbs @ 12, 12
+15lbs @
+
+ABDOMINALS / CORE
+
+Progressive Overload
+
+-Plank Oblique Rotations @ 16/16 (get pillow for elbow)
+
+-Side Plank Raises @ 15/15 (get pillow for elbow)
+
+-hanging leg raises
+Knees bent @
+Knee straight @
+Toes to bar @
+
+Core Endurance
+
+2 Round Circuit (#10)
+-15 Bike Crunches
+-15 Core Hackey Sacks
+-15 Starfish
+
+__________
+__________
+__________
+
+
+WORKOUT # 10 (4/2)
+
+Strength Circuit # 1 (2x)
+-Japanese Stand Up
+BW @ 20
+15lbs @ 20
+20lbs @ 20
+30lbs @ 20
+-Dragon Press
+15lbs @ 20
+20lbs @ 20
+25lbs @ 20
+30lbs @ 12
+-Hollow Hold Flies
+12lbs @
+15lbs @ 20
+20lbs @ 20
+25lbs @ 11
+-Book Opener Hip Raise
+15lbs @ 20/20
+20lbs @ 20/20
+25lbs @ 20/20
+30lbs @ 16/16
+
+Strength Circuit # 2 (2x)
+-Good Morning
+30lb BB (10lbs/side) @ 20
+50lb BB (20lbs/side) @ 20
+50lb BB w/ 2 sec pause @ 20
+50lb BB w/ 4 sec pause @ 20
+-Clean Technique
+Notes @
+-Clean
+35lbs @ 10/10
+-Swiss Ball Back Extension
+BW, Hand by Waist @ 20
+BW, Hands behind head @ 20
+BW, Hand behind head & 2 sec pause @
+-Decline Press
+15lbs @
+20lbs @ 22
+25lbs @ 20
+30lbs @ 20
+
+ABDOMINALS / CORE
+
+-Hollow Hold to cacoons
+BW (no pauses) @
+
+Core Endurance
+
+2 Round Core Circuit
+-15/15 IT Band Crunch
+-15 Toe Touches
+-15 Big Flutters
+
+__________
+__________
+__________
+
+
+WORKOUT # 11 (4/6)
+
+Strength Circuit # 1 (2x)
+-Rev Lunges (Alt)
+BW @ 20/20
+10lb bow tie @ 20/20
+15lbs bow tie @ 20/20
+20lbs bow tie @ 20/20
+-Bench Incline dead Hang DB Curls
+15lbs @ 20, 15
+20lbs @ 12
+-Diamond P-ups
+Knees @ 20, 20
+Full @ 13, 9
+-Figure 4 inner thigh raise
+BW @ 20/20, 20/20
+
+Strength Circuit # 2 (2x)
+-Cossack Switch Offs
+15lbs @ 20/20, 20/20
+20lbs @ 20/20
+35lb KB @ 20/20
+-Jerks
+25lbs @ 20, 12
+30lbs @ 15, 12
+-Supinated Banded Low Rows (High Anchor)
+Red close @ 20,
+Blue close @ 20
+Purple close @ 20,
+Purple medium distance @ 18
+-Banded Hip Thrust
+Blue, BW @ 20
+Black, BW @ 20
+Black, 20lb @ 20
+Black, 30lbs @ 15
+
+Bonus Super Set (2x)
+-Palof Circles (up & away)
+Red Red @ 20/20
+Blue Blue @
+-AT Raises
+Bi @ 20
+
+ABDOMINALS / CORE
+
+Progressive Overload
+
+Log Roll
+-Arms up @ 15
+-Legs up @
+
+L Sit
+Hands down @ 20
+Hands up @
+
+Hollow Rocks @ 20
+
+Endurance Core
+
+Evil Wheel Count Down (100 Bikes)
+-12 Evil Wheel
+-20 Bike Crunches
+-10 Evil Wheel
+-20 Bike Crunch
+-8 Evil Wheel
+-20 Bike Crunch
+-6 Evil Wheel
+-20 Bike Crunch
+-4 Evil Wheel
+-20 Bike Crunch
+-2 Evil Wheel
+
+__________
+__________
+__________
+
+
+WORKOUT # 12 (4/9)
+
+Strength Circuit # 1 (2x)
+-Wall Squat
+Bi @ 1:15, 1:00
+B stance @
+-Iron Cross
+8lbs @ 1:30
+10lbs @ 1:00,
+15lbs @ 30
+-Iso Hip Flexion Hold
+10lbs @ 1:00/1:00
+15lbs @ 1:00/1:00, 34/30
+-Iso Jane Fonda Hold
+10lbs @ 42/42
+15lbs @ 22/22, 22/15
+-Bottoms up hold
+35lbs & pinky @
+-Scapular Pup
+Bi @ 30
+Uni Kneeling @ 20/20
+
+OH Press Drop Set
+-40lbs @ 0,
+-35lbs @ 8
+-30lbs @ 13
+-25lbs @ 8
+-20lbs @ 11
+-15lbs @ 8
+-12lbs @ 20
+-10lbs @
+-8lbs @
+-5lbs @
+
+DB Curl Drop Set (butt against wall)
+-30lbs @ 4, 10
+-25lbs @ 6, 4
+-20lbs @ 7, 7
+-15lbs @ 7, 7
+-10lbs @ 20, 20
+-8lbs @
+-5lbs @
+
+DB Incline Flies (1 lvl)
+-25lbs @ 13
+-20lbs @ 20
+-15lbs @
+-12lbs @
+-10lbs @
+-8lbs @
+-5lbs @
+
+Lat Pull Downs (Wide Grip)
+-lvl 9 (135lbs) @
+-lvl 8 (120lbs) @ 4, 2,
+-lvl 7 (105lbs) @ 6, 7
+-lvl 6 (90lbs) @ 5, 6
+-lvl 5 (75lbs) @ 10, 11
+-lvl 4 (60lbs) @ 15, 6
+-lvl 3 (45lbs) @ 20, 20
+-lvl 2 (30lbs) @
+-lvl 1 (15lbs) @
+
+ABDOMINALS / CORE
+
+Progressive Overload
+
+Reverse Crunch @ 20 (brutal)
+
+Janda Sit Ups @
+Yellow support @ 4
+Green
+
+Core Endurance
+
+2 Round Circuit (2x)
+-20 Russian twist smashes
+-20 Deadbug Smashed
+-20 Short Crunches
+
+__________
+__________
+__________
+
+
+WORKOUT # 1 (4/13)
+
+Strength Circuit # 1 (2x)
+-Thrusters
+15lbs @ 20, 20
+20lbs, 4 tiers @ 22
+25lbs, 4 tiers @ 20,
+30lbs, 4 tiers @ 20
+-Bent Over Rows
+20lbs @ 20/20, 20/20
+25lbs @ 21/22, 20/20
+30lbs @ 20/20, 20/20
+-Palof Press
+Red Red @ 20/20, 20/20
+Blue Blue @ 20/20, 20/20
+Purple, Purple @ 20/20, 15/20
+-Glute Kick Backs
+Black @ 20/20, 20/20
+10lbs @ 20/20
+15lbs @ 20/20
+20lbs @ 20/20, 0/20
+
+Strength Circuit # 2 (2x)
+-Gunslinger Curls
+35lbs @ 24/22,
+45lbs @ 20/20
+-Scapular P-ups
+Bi BW @ 20
+Uni BW @
+-Forearm Curls
+20lbs @ 20/20, 20/20
+25lbs @ 20/20
+-Forearm Extensions
+8lbs @ 20/20, 20/20
+10lbs @ 20/20
+-Suitcase Carries
+55lbs @ 36/30,
+60lbs @
+
+ABDOMINALS & CORE
+
+Progressive Overload
+
+Deadbugs @ 21
+
+Evil Wheel assessment @
+
+Plank @ 2:02
+
+__________
+__________
+__________
+
+
+WORKOUT # 2 (4/16)
+
+Strength Circuit # 1 (2x)
+-RDL's
+20lbs @ 20
+25lbs @ 20
+30lbs @
+35lbs @ 20
+45lbs @ 21
+55lbs @ 20
+65lbs @ 7
+-Incline Flies (1 lvl)
+15lbs @ 20
+20lbs @ 20
+25lbs @ 20, 13
+35lbs @ 18, 13
+40lbs @
+-Rev Flies
+Yellow @ 20
+Green @ 20
+Red @ 20, 20
+Blue @ 20 (mod rom)
+-Calve Raises
+Bi @ 21
+Uni @ 20/20
+Uni, 20lbs @ 20/20
+Uni, 25lbs @ 20/20
+Uni, 35lbs @ 20/20, 20/20
+uni, 45lbs @
+
+Strength Circuit # 2
+-Step ups
+5 tiers, BW @
+6 ties, BW @ 20/20
+6 tiers, 10lbs contra @ 20/20
+6 tiers, 15lbs contra @ 20/20
+6 tiers, 20lbs contra @ 20/20
+6 tiers, 25lbs contra @ 20/20
+6 tiers, 30lbs contra @ 20/20
+-Hammer Curls
+12lbs @
+15lbs @ 20
+20lbs @ 20, 20
+25lbs (butt against) @ 20
+30lbs (butt against) @ 8
+-Bench Dips
+Bent @
+Straight @ 20, 20
+Legs elevated @ 10
+-Seated Abduction
+Blue @ 20
+Black @ 20
+Black & Yellow @ 20
+Black & Green @ 20, 20
+
+ABDOMINALS / CORE
+
+-Swiss ball pass @ 14
+-Swiss ball sideways v-ups @ 20/20
+-Sit up mid way hold
+Lvl 1 @ 35
+
+__________
+__________
+__________
+
+
+WORKOUT # 3 (4/20)
+
+Strength Circuit # 1 (2x)
+-Face the wall Squat
+BW @ 20, 20
+35lb KB, no floor touch @ 20
+35lb KB, floor touch @ 20
+45lb KB, no floor touch @ 20
+45lb KB, floor touch @ 20
+-Lat Pull Downs
+75lbs (lvl 5) @ 20
+90lbs (lvl 6) @ 18
+105lbs (lvl 7) @ 20
+120lbs (lvl 8) @ 13, 11
+-Machine Flies
+45lbs (lvl 3) @
+60lbs (lvl 4) @
+75lbs (lvl 5) @ 20
+90lbs (lvl 6) @ 17
+105lbs (lvl 7) @ 20
+120lbs (lvl 8) @ 16
+135lbs (lvl 9) @ 20
+145lns (lvl 9 & both weight additions) @ 16.5
+-Hip Thrust
+BW @ 20
+15lbs @ 20
+20lbs @ 20
+30lbs @ 19
+40lbs @ 20
+
+Strength Circuit # 2 (2x)
+-1 legged RDL
+BW @ 20/20
+10lbs @ 20/20
+15lbs @ 20/20
+20lbs @ 20/20
+25lbs @ 20/20, 20/20
+-Skull Crusher
+12lbs @
+15lbs @ 20, 20
+20lbs @ 21
+25lbs @ 12, 11
+-Banded Biceps
+Red @ 20
+Blue @ 20
+Purple @ 20
+Purple & Yellow @ 19, 17
+-Blast Offs (Halteres)
+20lbs @ 19
+25lbs @
+
+ABDOMINALS / CORE
+
+-Swiss ball plank @ 1:17
+-Decline Bench Sit ups
+Lvl 1 @ 21
+Lvl 2 @ 20
+
+Core Endurance
+
+2 Round Circuit
+-20 Alt Toe Touch
+-20 Bike Crunch
+-20/20 IT Band Crunch`;
 
 const taxonomyRules = [
   { family: "Core", group: "Core", keywords: ["plank", "crunch", "deadbug", "hollow", "sit up", "russian twist", "twister", "leg lift", "l sit", "log roll", "reverse crunch", "toe touch", "flutter", "v up", "tornado", "stir the pot", "evil wheel", "bike crunch", "supermen", "knee tuck", "starfish", "core hackey", "swiss ball roll out"] },
